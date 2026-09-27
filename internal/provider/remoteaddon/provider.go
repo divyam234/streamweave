@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"streamweave/internal/domain"
 	"streamweave/internal/engine"
@@ -105,6 +106,53 @@ func (p *Provider) Search(ctx context.Context, req engine.SearchRequest) ([]doma
 		escapeMediaID(req.Media.ID),
 	)
 
+	// Upstream addons occasionally fail transiently (403/429/5xx or a
+	// dropped connection). Retry once after a short backoff so a single
+	// flaky response does not surface as "no streams found".
+	var candidates []domain.Candidate
+	var err error
+	for attempt := 0; attempt < 2; attempt++ {
+		if attempt > 0 {
+			timer := time.NewTimer(time.Second)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return nil, ctx.Err()
+			case <-timer.C:
+			}
+		}
+		candidates, err = p.searchOnce(ctx, endpoint, req)
+		if err == nil {
+			return candidates, nil
+		}
+		if !retryable(err) {
+			return nil, err
+		}
+	}
+	return nil, err
+}
+
+func retryable(err error) bool {
+	var statusError *addonStatusError
+	if errors.As(err, &statusError) {
+		code := statusError.Code
+		return code == http.StatusForbidden ||
+			code == http.StatusTooManyRequests ||
+			code >= http.StatusInternalServerError
+	}
+	return true
+}
+
+type addonStatusError struct {
+	Code int
+}
+
+func (e *addonStatusError) Error() string {
+	return fmt.Sprintf("addon returned status %d", e.Code)
+}
+
+func (p *Provider) searchOnce(ctx context.Context, endpoint string, req engine.SearchRequest) ([]domain.Candidate, error) {
+
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create addon request: %w", err)
@@ -120,7 +168,7 @@ func (p *Provider) Search(ctx context.Context, req engine.SearchRequest) ([]doma
 
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4<<10))
-		return nil, fmt.Errorf("addon returned status %d", response.StatusCode)
+		return nil, &addonStatusError{Code: response.StatusCode}
 	}
 
 	var payload streamResponse

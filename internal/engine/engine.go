@@ -234,7 +234,12 @@ func (e *Engine) discoverCached(ctx context.Context, req SearchRequest) ([]domai
 		if discoverErr != nil {
 			return nil, discoverErr
 		}
-		e.discoveryCache.set(key, candidates)
+		// Empty results are never cached: they usually mean a transient
+		// upstream failure, and caching them would keep serving
+		// "no streams found" until the entry expires.
+		if len(candidates) != 0 {
+			e.discoveryCache.set(key, candidates)
+		}
 		return candidates, nil
 	})
 	if err != nil {

@@ -88,6 +88,56 @@ func TestSearchKeepsSeriesIDColonsUnescaped(t *testing.T) {
 	}
 }
 
+func TestSearchRetriesTransientAddonFailureOnce(t *testing.T) {
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			http.Error(w, "blocked", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"streams":[{"infoHash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}`))
+	}))
+	defer server.Close()
+
+	provider, err := New("test", "torrentio", server.URL, server.Client(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := provider.Search(context.Background(), engine.SearchRequest{
+		Media: domain.MediaRef{Type: "movie", ID: "tt1234567"},
+	})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(results) != 1 || calls != 2 {
+		t.Fatalf("results = %d, calls = %d", len(results), calls)
+	}
+}
+
+func TestSearchDoesNotRetryNotFound(t *testing.T) {
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	provider, err := New("test", "torrentio", server.URL, server.Client(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := provider.Search(context.Background(), engine.SearchRequest{
+		Media: domain.MediaRef{Type: "movie", ID: "tt1234567"},
+	}); err == nil {
+		t.Fatal("expected error")
+	}
+	if calls != 1 {
+		t.Fatalf("calls = %d, want 1", calls)
+	}
+}
+
 func TestValidateEndpointPreservesConfiguredBase(t *testing.T) {
 	got, err := ValidateEndpoint("https://example.com/config-token", false)
 	if err != nil {

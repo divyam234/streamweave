@@ -52,3 +52,41 @@ func TestSearchCacheKeyIncludesInstallation(t *testing.T) {
 		t.Fatalf("provider calls = %d, want 2", provider.calls)
 	}
 }
+
+type flakyProvider struct {
+	mu    sync.Mutex
+	calls int
+}
+
+func (p *flakyProvider) ID() string { return "flaky" }
+
+func (p *flakyProvider) Search(context.Context, SearchRequest) ([]domain.Candidate, error) {
+	p.mu.Lock()
+	p.calls++
+	calls := p.calls
+	p.mu.Unlock()
+	if calls == 1 {
+		return []domain.Candidate{}, nil
+	}
+	return []domain.Candidate{{ID: "one", SourceID: p.ID(), Kind: domain.CandidateTorrent, Torrent: &domain.TorrentInfo{InfoHash: "abc"}}}, nil
+}
+
+func TestSearchDoesNotCacheEmptyDiscovery(t *testing.T) {
+	provider := &flakyProvider{}
+	e := New(provider)
+	req := SearchRequest{InstallationID: "install", Media: domain.MediaRef{Type: "movie", ID: "tt1"}}
+	first, err := e.SearchUnresolved(context.Background(), req)
+	if err != nil {
+		t.Fatalf("first Search: %v", err)
+	}
+	if len(first) != 0 {
+		t.Fatalf("first len = %d, want 0", len(first))
+	}
+	second, err := e.SearchUnresolved(context.Background(), req)
+	if err != nil {
+		t.Fatalf("second Search: %v", err)
+	}
+	if len(second) != 1 {
+		t.Fatalf("second len = %d, want 1 (empty result must not be cached)", len(second))
+	}
+}
