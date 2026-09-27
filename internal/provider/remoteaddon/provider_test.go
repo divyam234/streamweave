@@ -1,9 +1,13 @@
 package remoteaddon
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"streamweave/internal/domain"
+	"streamweave/internal/engine"
 )
 
 func TestValidateEndpointStripsManifestSuffix(t *testing.T) {
@@ -13,6 +17,27 @@ func TestValidateEndpointStripsManifestSuffix(t *testing.T) {
 	}
 	if got != "https://example.com/config-token" {
 		t.Fatalf("endpoint = %q", got)
+	}
+}
+
+func TestSearchIdentifiesClientToAddon(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("User-Agent") != "StreamWeave/0.2.0" {
+			http.Error(w, "blocked", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"streams":[{"infoHash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}`))
+	}))
+	defer server.Close()
+
+	provider, err := New("test", server.URL, server.Client(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := provider.Search(context.Background(), engine.SearchRequest{Media: domain.MediaRef{Type: "movie", ID: "tt1234567"}})
+	if err != nil || len(results) != 1 {
+		t.Fatalf("Search returned %d results: %v", len(results), err)
 	}
 }
 

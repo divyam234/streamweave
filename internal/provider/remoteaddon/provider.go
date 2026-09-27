@@ -109,6 +109,7 @@ func (p *Provider) Search(ctx context.Context, req engine.SearchRequest) ([]doma
 		return nil, fmt.Errorf("create addon request: %w", err)
 	}
 	request.Header.Set("Accept", "application/json")
+	request.Header.Set("User-Agent", "StreamWeave/0.2.0")
 
 	response, err := p.client.Do(request)
 	if err != nil {
