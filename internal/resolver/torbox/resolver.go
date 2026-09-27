@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"streamweave/internal/domain"
 	"streamweave/internal/resolver/common"
@@ -16,8 +15,6 @@ import (
 
 const (
 	DefaultBaseURL = "https://api.torbox.app"
-	pollInterval   = 2 * time.Second
-	maxWait        = 60 * time.Second
 )
 
 type Resolver struct {
@@ -103,9 +100,8 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 		return candidate, errors.New(nonEmpty(created.Detail, created.Error, "TorBox failed to create torrent"))
 	}
 
-	deadline := time.Now().Add(maxWait)
 	var item torrent
-	for {
+	{
 		var response envelope[torrent]
 		query := url.Values{
 			"id":           {strconv.Itoa(created.Data.TorrentID)},
@@ -118,18 +114,8 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 			return candidate, errors.New(nonEmpty(response.Detail, response.Error, "TorBox failed to read torrent"))
 		}
 		item = response.Data
-		if item.DownloadPresent || item.DownloadFinished || item.DownloadState == "cached" || item.DownloadState == "completed" {
-			break
-		}
-		if time.Now().After(deadline) {
-			cached := false
-			candidate.Cached = &cached
+		if !(item.DownloadPresent || item.DownloadFinished || item.DownloadState == "cached" || item.DownloadState == "completed") {
 			return candidate, common.ErrNotReady
-		}
-		select {
-		case <-ctx.Done():
-			return candidate, ctx.Err()
-		case <-time.After(pollInterval):
 		}
 	}
 
@@ -188,9 +174,8 @@ func (r *Resolver) resolveUsenet(ctx context.Context, candidate domain.Candidate
 		return candidate, errors.New(nonEmpty(created.Detail, created.Error, "TorBox failed to create Usenet download"))
 	}
 
-	deadline := time.Now().Add(maxWait)
 	var item usenetDownload
-	for {
+	{
 		var response envelope[usenetDownload]
 		query := url.Values{
 			"id":           {strconv.Itoa(created.Data.UsenetDownloadID)},
@@ -203,18 +188,8 @@ func (r *Resolver) resolveUsenet(ctx context.Context, candidate domain.Candidate
 			return candidate, errors.New(nonEmpty(response.Detail, response.Error, "TorBox failed to read Usenet download"))
 		}
 		item = response.Data
-		if item.DownloadPresent || item.DownloadFinished || item.DownloadState == "cached" || item.DownloadState == "completed" {
-			break
-		}
-		if time.Now().After(deadline) {
-			cached := false
-			candidate.Cached = &cached
+		if !(item.DownloadPresent || item.DownloadFinished || item.DownloadState == "cached" || item.DownloadState == "completed") {
 			return candidate, common.ErrNotReady
-		}
-		select {
-		case <-ctx.Done():
-			return candidate, ctx.Err()
-		case <-time.After(pollInterval):
 		}
 	}
 

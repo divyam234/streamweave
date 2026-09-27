@@ -108,7 +108,7 @@ func main() {
 
 	aggregationEngine := engine.NewWithSources(providerSource, resolverSource, 8)
 	aggregationEngine.SetMetadataSource(cinemeta.New("", outboundClient))
-	stremioHandler := stremioprotocol.NewHandlerWithSecureLinks(aggregationEngine, cfg.Production)
+	stremioHandler := stremioprotocol.NewHandlerWithSecureLinks(aggregationEngine, cfg.Production).WithSecrets(secrets)
 
 	ready := func(ctx context.Context) error {
 		if pool == nil {

@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/url"
 	"strings"
-	"time"
 
 	"streamweave/internal/domain"
 	"streamweave/internal/resolver/common"
@@ -15,8 +13,6 @@ import (
 
 const (
 	DefaultBaseURL = "https://api.torrin.app"
-	pollInterval   = 2 * time.Second
-	maxWait        = 60 * time.Second
 )
 
 type Resolver struct {
@@ -89,30 +85,8 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 	}
 
 	item := added.Data
-	deadline := time.Now().Add(maxWait)
-	for item.Status != "cached" && item.Status != "downloaded" {
-		if item.Status == "failed" || item.Status == "invalid" {
-			return candidate, errors.New("Torrin magnet failed")
-		}
-		if time.Now().After(deadline) {
-			cached := false
-			candidate.Cached = &cached
-			return candidate, common.ErrNotReady
-		}
-		select {
-		case <-ctx.Done():
-			return candidate, ctx.Err()
-		case <-time.After(pollInterval):
-		}
-
-		var fetched envelope[magnetData]
-		if err := r.client.Get(ctx, "/v0/store/magnets/"+url.PathEscape(item.ID), nil, &fetched); err != nil {
-			return candidate, err
-		}
-		if fetched.Error != nil {
-			return candidate, errors.New(fetched.Error.Message)
-		}
-		item = fetched.Data
+	if item.Status != "cached" && item.Status != "downloaded" {
+		return candidate, common.ErrNotReady
 	}
 
 	files := make([]common.File, 0, len(item.Files))

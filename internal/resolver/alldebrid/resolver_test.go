@@ -3,11 +3,11 @@ package alldebrid
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"streamweave/internal/domain"
 )
@@ -118,8 +118,8 @@ func TestResolveUncachedMagnetKeepsTorrent(t *testing.T) {
 		Kind:    domain.CandidateTorrent,
 		Torrent: &domain.TorrentInfo{InfoHash: "abc"},
 	})
-	if err != nil {
-		t.Fatalf("Resolve: %v", err)
+	if err == nil {
+		t.Fatal("expected uncached error")
 	}
 	if result.HTTP != nil {
 		t.Fatalf("unexpected HTTP result: %#v", result.HTTP)
@@ -140,7 +140,7 @@ func TestSelectFileUsesTorrentIndex(t *testing.T) {
 	}
 }
 
-func TestResolvePollsDelayedLink(t *testing.T) {
+func TestResolveRejectsDelayedLinkWithoutPolling(t *testing.T) {
 	hash := strings.Repeat("b", 40)
 	delayedCalls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -177,17 +177,10 @@ func TestResolvePollsDelayedLink(t *testing.T) {
 		t.Fatalf("NewClientWithBaseURL: %v", err)
 	}
 	resolver := NewResolver("resolver-1", client)
-	resolver.pollInterval = time.Millisecond
 
-	result, err := resolver.Resolve(context.Background(), domain.Candidate{Kind: domain.CandidateTorrent, Torrent: &domain.TorrentInfo{InfoHash: hash}})
-	if err != nil {
-		t.Fatalf("Resolve: %v", err)
-	}
-	if result.HTTP == nil || result.HTTP.URL != "https://cdn.example/movie.mkv" {
-		t.Fatalf("HTTP = %#v", result.HTTP)
-	}
-	if delayedCalls != 2 {
-		t.Fatalf("delayed calls = %d, want 2", delayedCalls)
+	_, err = resolver.Resolve(context.Background(), domain.Candidate{Kind: domain.CandidateTorrent, Torrent: &domain.TorrentInfo{InfoHash: hash}})
+	if !errors.Is(err, ErrDelayed) || delayedCalls != 0 {
+		t.Fatalf("error=%v, delayed calls=%d", err, delayedCalls)
 	}
 }
 

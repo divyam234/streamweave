@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"streamweave/internal/domain"
 	"streamweave/internal/resolver/common"
@@ -16,8 +14,6 @@ import (
 
 const (
 	DefaultBaseURL = "https://debrider.app/api"
-	pollInterval   = 2 * time.Second
-	maxWait        = 60 * time.Second
 )
 
 type Resolver struct {
@@ -78,27 +74,11 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 	}
 
 	item := created.Data
-	deadline := time.Now().Add(maxWait)
-	for item.Status != "completed" {
-		if item.Status == "error" {
-			return candidate, errors.New(firstNonEmpty(created.Message, "Debrider task failed"))
-		}
-		if time.Now().After(deadline) {
-			cached := false
-			candidate.Cached = &cached
-			return candidate, common.ErrNotReady
-		}
-		select {
-		case <-ctx.Done():
-			return candidate, ctx.Err()
-		case <-time.After(pollInterval):
-		}
-
-		var fetched task
-		if err := r.client.Get(ctx, "/v1/tasks/"+url.PathEscape(item.ID), nil, &fetched); err != nil {
-			return candidate, err
-		}
-		item = fetched
+	if item.Status == "error" {
+		return candidate, errors.New(firstNonEmpty(created.Message, "Debrider task failed"))
+	}
+	if item.Status != "completed" {
+		return candidate, common.ErrNotReady
 	}
 
 	files := make([]common.File, 0, len(item.Files))

@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"streamweave/internal/domain"
 	"streamweave/internal/resolver/common"
@@ -16,8 +15,6 @@ import (
 
 const (
 	DefaultBaseURL = "https://offcloud.com"
-	pollInterval   = 3 * time.Second
-	maxWait        = 60 * time.Second
 )
 
 type Resolver struct {
@@ -88,32 +85,8 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 		return candidate, errors.New("Offcloud returned an empty request id")
 	}
 
-	deadline := time.Now().Add(maxWait)
-	for added.Status != "downloaded" {
-		if time.Now().After(deadline) {
-			cached := false
-			candidate.Cached = &cached
-			return candidate, common.ErrNotReady
-		}
-		select {
-		case <-ctx.Done():
-			return candidate, ctx.Err()
-		case <-time.After(pollInterval):
-		}
-
-		var history []historyItem
-		if err := r.client.Get(ctx, "/api/cloud/history", nil, &history); err != nil {
-			return candidate, err
-		}
-		for _, item := range history {
-			if item.RequestID == added.RequestID {
-				added.Status = item.Status
-				break
-			}
-		}
-		if added.Status == "error" || added.Status == "canceled" {
-			return candidate, errors.New("Offcloud cloud download failed")
-		}
+	if added.Status != "downloaded" {
+		return candidate, common.ErrNotReady
 	}
 
 	var explored exploreResponse

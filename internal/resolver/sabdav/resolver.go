@@ -219,9 +219,7 @@ func (r *Resolver) addURL(ctx context.Context, nzbURL, category, folder string) 
 }
 
 func (r *Resolver) waitHistory(ctx context.Context, nzoID, category string) (historySlot, error) {
-	deadline := time.Now().Add(r.config.MaxWait)
-	for {
-		endpoint, err := url.Parse(strings.TrimRight(r.config.APIURL, "/"))
+	endpoint, err := url.Parse(strings.TrimRight(r.config.APIURL, "/"))
 		if err != nil {
 			return historySlot{}, err
 		}
@@ -251,15 +249,7 @@ func (r *Resolver) waitHistory(ctx context.Context, nzoID, category string) (his
 				return historySlot{}, errors.New(firstNonEmpty(slot.FailMessage, "SAB download failed"))
 			}
 		}
-		if time.Now().After(deadline) {
-			return historySlot{}, common.ErrNotReady
-		}
-		select {
-		case <-ctx.Done():
-			return historySlot{}, ctx.Err()
-		case <-time.After(r.config.PollInterval):
-		}
-	}
+		return historySlot{}, common.ErrNotReady
 }
 
 func (r *Resolver) getJSON(ctx context.Context, endpoint string, target any) error {

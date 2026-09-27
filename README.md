@@ -125,19 +125,21 @@ The backend validates the URL and stores the normalized addon base path:
 https://example-addon/config-token
 ```
 
-Stream discovery then uses the standard Stremio `/stream/{type}/{id}.json` route and feeds returned torrents/direct streams through the same normalization, dedupe, ranking, cache, and resolver pipeline as native providers.
+Stream discovery then uses the standard Stremio `/stream/{type}/{id}.json` route and feeds returned torrents/direct streams through the same normalization, dedupe, ranking, and cache pipeline as native providers. Debrid resolution happens lazily when a result is selected for playback, not while building the list.
 
 ## Aggregation pipeline
 
-Provider results pass through a deterministic engine pipeline before protocol adaptation:
+Stream listing is discovery-only so Stremio stays fast:
 
 1. bounded concurrent provider discovery
 2. 30-second bounded in-memory discovery cache with singleflight request coalescing
 3. release metadata enrichment from titles and filenames (resolution, codec, size)
 4. torrent/direct URL deduplication with metadata merging
-5. deterministic scoring and ordering
-6. optional resolver execution
-7. a second ranking pass after resolver metadata is known
+5. deterministic scoring and ordering with English results preferred
+
+Playback resolves exactly one selected torrent through the installation's
+resolver. Uncached torrents and delayed link generation return an error
+immediately without polling, so another listed result can be tried.
 
 The default ranking strongly prefers cached and directly playable results, then higher resolution, efficient codecs, and seed availability. Ties are broken by stable source and candidate IDs rather than provider response timing.
 
@@ -165,10 +167,10 @@ Do not rotate or lose this key without re-encrypting stored resolver credentials
 Create an AllDebrid account from the Resolvers tab, then assign it to an installation. Resolution modes are:
 
 - `client`: return original torrent/direct candidates without server-side debrid resolution.
-- `server`: return only candidates that resolve to playable server-side links.
-- `hybrid`: prefer resolved links while retaining original torrent candidates when resolution is unavailable.
+- `server`: list playback links that resolve on selection; uncached or delayed torrents fail fast at playback time.
+- `hybrid`: list playback links while retaining original torrent candidates when immediate resolution is unavailable.
 
-The resolver supports ready magnets, nested magnet file trees, explicit torrent file indexes, largest-video fallback selection, link unlocking, and detection of delayed-link responses. Hybrid mode preserves the original torrent candidate when immediate resolution is unavailable.
+The resolver supports ready magnets, nested magnet file trees, explicit torrent file indexes, largest-video fallback selection, link unlocking, and immediate rejection of delayed-link responses.
 
 For integration tests only, `ALLDEBRID_BASE_URL` can point the client at a local mock API. Production should use the default HTTPS AllDebrid API endpoint.
 

@@ -6,10 +6,13 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"streamweave/internal/domain"
 	"streamweave/internal/engine"
+	"streamweave/internal/secretbox"
 )
 
 type profileResolverSource struct {
@@ -219,8 +222,12 @@ func TestNuvioServerModeReturnsResolvedURL(t *testing.T) {
 		},
 		1,
 	)
-	handler := NewHandler(e)
-	req := httptest.NewRequest(http.MethodGet, "/nuvio-server/stream/movie/tt0111161.json", nil)
+	box, err := secretbox.NewFromHex(strings.Repeat("ab", 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := NewHandler(e).WithSecrets(box)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/nuvio-server/stream/movie/tt0111161.json", nil)
 	rec := httptest.NewRecorder()
 	handler.Routes().ServeHTTP(rec, req)
 
@@ -234,8 +241,22 @@ func TestNuvioServerModeReturnsResolvedURL(t *testing.T) {
 	if len(response.Streams) != 1 {
 		t.Fatalf("streams = %#v", response.Streams)
 	}
-	if response.Streams[0].URL != "https://cdn.example/video.mkv" || response.Streams[0].InfoHash != "" {
+	if !strings.Contains(response.Streams[0].URL, "/nuvio-server/play/") || response.Streams[0].InfoHash != "" {
 		t.Fatalf("stream = %#v", response.Streams[0])
+	}
+	playURL, err := url.Parse(response.Streams[0].URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	playPath := playURL.RequestURI()
+	if prefix := "/addon/nuvio-server/play/"; strings.HasPrefix(playPath, prefix) {
+		playPath = "/nuvio-server/play/" + strings.TrimPrefix(playPath, prefix)
+	}
+	playReq := httptest.NewRequest(http.MethodGet, playPath, nil)
+	playRec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(playRec, playReq)
+	if playRec.Code != http.StatusTemporaryRedirect || playRec.Header().Get("Location") != "https://cdn.example/video.mkv" {
+		t.Fatalf("playback status=%d location=%q", playRec.Code, playRec.Header().Get("Location"))
 	}
 }
 

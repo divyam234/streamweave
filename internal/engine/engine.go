@@ -156,6 +156,15 @@ func (e *Engine) InstallationProfile(ctx context.Context, installationID string)
 }
 
 func (e *Engine) Search(ctx context.Context, req SearchRequest) ([]domain.Candidate, error) {
+	return e.search(ctx, req, false)
+}
+
+// SearchUnresolved prepares results without contacting the resolver; playback resolves one item.
+func (e *Engine) SearchUnresolved(ctx context.Context, req SearchRequest) ([]domain.Candidate, error) {
+	return e.search(ctx, req, true)
+}
+
+func (e *Engine) search(ctx context.Context, req SearchRequest, lazy bool) ([]domain.Candidate, error) {
 	if err := e.ValidateInstallation(ctx, req.InstallationID); err != nil {
 		return nil, err
 	}
@@ -174,6 +183,9 @@ func (e *Engine) Search(ctx context.Context, req SearchRequest) ([]domain.Candid
 	candidates = prepareCandidates(candidates)
 	if len(candidates) > defaultMaxCandidates {
 		candidates = candidates[:defaultMaxCandidates]
+	}
+	if lazy {
+		return candidates, nil
 	}
 
 	resolution, err := e.resolvers.ResolutionFor(ctx, req.InstallationID)
@@ -196,6 +208,17 @@ func (e *Engine) Search(ctx context.Context, req SearchRequest) ([]domain.Candid
 		final = final[:defaultMaxCandidates]
 	}
 	return final, nil
+}
+
+func (e *Engine) ResolveSelected(ctx context.Context, installationID string, candidate domain.Candidate) (domain.Candidate, error) {
+	resolution, err := e.resolvers.ResolutionFor(ctx, installationID)
+	if err != nil {
+		return candidate, err
+	}
+	if resolution.Mode == ResolutionClient || resolution.Resolver == nil {
+		return candidate, errors.New("resolver unavailable")
+	}
+	return resolution.Resolver.Resolve(ctx, candidate)
 }
 
 func (e *Engine) discoverCached(ctx context.Context, req SearchRequest) ([]domain.Candidate, error) {

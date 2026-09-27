@@ -42,3 +42,14 @@ func TestPrepareCandidatesTieBreakIsDeterministic(t *testing.T) {
 		t.Fatalf("order = %q, %q", got[0].ID, got[1].ID)
 	}
 }
+
+func TestEnglishPreferredWithoutHidingOtherLanguages(t *testing.T) {
+	got := prepareCandidates([]domain.Candidate{
+		{ID: "foreign", SourceID: "source", Title: "Movie.French.2160p", Torrent: &domain.TorrentInfo{InfoHash: "a"}},
+		{ID: "unknown", SourceID: "source", Title: "Movie.1080p", Torrent: &domain.TorrentInfo{InfoHash: "b"}},
+		{ID: "english", SourceID: "source", Title: "Movie.English.720p", Torrent: &domain.TorrentInfo{InfoHash: "c"}},
+	})
+	if len(got) != 3 || got[0].ID != "english" || got[1].ID != "unknown" || got[2].ID != "foreign" {
+		t.Fatalf("unexpected order: %#v", got)
+	}
+}

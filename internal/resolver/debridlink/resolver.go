@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"streamweave/internal/domain"
 	"streamweave/internal/resolver/common"
@@ -16,8 +14,6 @@ import (
 
 const (
 	DefaultBaseURL = "https://debrid-link.com/api"
-	pollInterval   = 2 * time.Second
-	maxWait        = 60 * time.Second
 )
 
 type Resolver struct {
@@ -92,36 +88,8 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 	}
 
 	item := added.Value
-	deadline := time.Now().Add(maxWait)
-	for item.DownloadPercent < 100 && !item.Downloaded {
-		if time.Now().After(deadline) {
-			cached := false
-			candidate.Cached = &cached
-			return candidate, common.ErrNotReady
-		}
-		select {
-		case <-ctx.Done():
-			return candidate, ctx.Err()
-		case <-time.After(pollInterval):
-		}
-
-		var listed paginated[torrent]
-		query := url.Values{
-			"ids":       {item.ID},
-			"structure": {"list"},
-			"perPage":   {"20"},
-			"page":      {"0"},
-		}
-		if err := r.client.Get(ctx, "/v2/seedbox/list", query, &listed); err != nil {
-			return candidate, err
-		}
-		if !listed.Success {
-			return candidate, errors.New(responseError(listed.Error, listed.Desc, "Debrid-Link failed to read torrent"))
-		}
-		if len(listed.Value) == 0 {
-			continue
-		}
-		item = listed.Value[0]
+	if item.DownloadPercent < 100 && !item.Downloaded {
+		return candidate, common.ErrNotReady
 	}
 
 	files := make([]common.File, 0, len(item.Files))

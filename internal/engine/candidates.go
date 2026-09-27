@@ -15,6 +15,8 @@ var (
 	resolutionPattern = regexp.MustCompile(`(?i)(?:^|[ ._-]|\[|\()(2160p|4k|1080p|720p|480p)(?:$|[ ._-]|\]|\))`)
 	codecPattern      = regexp.MustCompile(`(?i)(?:^|[ ._-]|\[|\()(av1|hevc|h[ ._-]?265|x265|h[ ._-]?264|x264)(?:$|[ ._-]|\]|\))`)
 	sizePattern       = regexp.MustCompile(`(?i)(\d+(?:\.\d+)?)\s*(tb|gb|mb)\b`)
+	englishPattern    = regexp.MustCompile(`(?i)(?:^|[^a-z])(eng|english)(?:$|[^a-z])`)
+	foreignPattern    = regexp.MustCompile(`(?i)(?:^|[^a-z])(hindi|tamil|telugu|french|german|spanish|italian|japanese|korean|russian|arabic|dubbed)(?:$|[^a-z])`)
 )
 
 func prepareCandidates(candidates []domain.Candidate) []domain.Candidate {
@@ -139,6 +141,26 @@ func mergeCandidate(left, right domain.Candidate) domain.Candidate {
 
 func scoreCandidate(candidate domain.Candidate) float64 {
 	score := 0.0
+	english, foreign := false, false
+	for _, language := range candidate.Languages {
+		switch strings.ToLower(strings.TrimSpace(language)) {
+		case "en", "eng", "english":
+			english = true
+		default:
+			foreign = true
+		}
+	}
+	if englishPattern.MatchString(candidate.Title + " " + candidate.Filename) {
+		english = true
+	}
+	if foreignPattern.MatchString(candidate.Title + " " + candidate.Filename) {
+		foreign = true
+	}
+	if english {
+		score += 400
+	} else if foreign {
+		score -= 400
+	}
 	if candidate.Cached != nil {
 		if *candidate.Cached {
 			score += 1000

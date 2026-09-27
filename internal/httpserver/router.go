@@ -120,6 +120,9 @@ func redactedPath(path string) string {
 	if strings.HasPrefix(path, "/addon/") {
 		rest := strings.TrimPrefix(path, "/addon/")
 		if index := strings.Index(rest, "/"); index >= 0 {
+			if strings.HasPrefix(rest[index:], "/play/") {
+				return "/addon/[token]/play/[token]"
+			}
 			return "/addon/[token]" + rest[index:]
 		}
 		return "/addon/[token]"

@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"streamweave/internal/domain"
 	"streamweave/internal/resolver/common"
@@ -16,8 +15,6 @@ import (
 
 const (
 	DefaultBaseURL = "https://api.real-debrid.com/rest/1.0"
-	pollInterval   = 2 * time.Second
-	maxWait        = 60 * time.Second
 )
 
 type Resolver struct {
@@ -104,25 +101,12 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 		}
 	}
 
-	deadline := time.Now().Add(maxWait)
-	for {
-		info, err = r.getInfo(ctx, added.ID)
-		if err != nil {
-			return candidate, err
-		}
-		if len(info.Links) > 0 {
-			break
-		}
-		if time.Now().After(deadline) {
-			cached := false
-			candidate.Cached = &cached
-			return candidate, common.ErrNotReady
-		}
-		select {
-		case <-ctx.Done():
-			return candidate, ctx.Err()
-		case <-time.After(pollInterval):
-		}
+	info, err = r.getInfo(ctx, added.ID)
+	if err != nil {
+		return candidate, err
+	}
+	if len(info.Links) == 0 {
+		return candidate, common.ErrNotReady
 	}
 
 	link := info.Links[0]

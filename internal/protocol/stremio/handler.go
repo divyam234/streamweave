@@ -1,12 +1,14 @@
 package stremio
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -14,11 +16,13 @@ import (
 	"streamweave/internal/engine"
 	"streamweave/internal/protocol/nuvio"
 	"streamweave/internal/safehttp"
+	"streamweave/internal/secretbox"
 )
 
 type Handler struct {
 	engine      *engine.Engine
 	secureLinks bool
+	secrets     *secretbox.Box
 }
 
 func NewHandler(e *engine.Engine) *Handler {
@@ -29,10 +33,14 @@ func NewHandlerWithSecureLinks(e *engine.Engine, secure bool) *Handler {
 	return &Handler{engine: e, secureLinks: secure}
 }
 
+func (h *Handler) WithSecrets(box *secretbox.Box) *Handler { h.secrets = box; return h }
+
 func (h *Handler) Routes() http.Handler {
 	r := chi.NewRouter()
 	r.Get("/{installationID}/manifest.json", h.manifest)
 	r.Get("/{installationID}/stream/{type}/{id}.json", h.streams)
+	r.Get("/{installationID}/play/{token}", h.play)
+	r.Head("/{installationID}/play/{token}", h.play)
 	return r
 }
 
@@ -69,7 +77,7 @@ func (h *Handler) manifest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) streams(w http.ResponseWriter, r *http.Request) {
-	candidates, err := h.engine.Search(r.Context(), engine.SearchRequest{
+	candidates, err := h.engine.SearchUnresolved(r.Context(), engine.SearchRequest{
 		InstallationID: chi.URLParam(r, "installationID"),
 		Media: domain.MediaRef{
 			Type: chi.URLParam(r, "type"),
@@ -82,6 +90,11 @@ func (h *Handler) streams(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		http.Error(w, "stream lookup failed", http.StatusBadGateway)
+		return
+	}
+	profile, err := h.engine.InstallationProfile(r.Context(), chi.URLParam(r, "installationID"))
+	if err != nil {
+		http.Error(w, "installation unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -110,6 +123,22 @@ func (h *Handler) streams(w http.ResponseWriter, r *http.Request) {
 				item.BehaviorHints.NotWebReady = true
 			}
 		} else if candidate.Torrent != nil {
+			if profile.ResolutionMode != engine.ResolutionClient && h.secrets != nil {
+				payload, marshalErr := json.Marshal(playbackToken{InstallationID: chi.URLParam(r, "installationID"), Candidate: candidate, Expires: time.Now().Add(4 * time.Hour).Unix()})
+				if marshalErr != nil {
+					continue
+				}
+				token, sealErr := h.secrets.SealURL(payload)
+				if sealErr != nil {
+					continue
+				}
+				item.URL, sealErr = h.streamURL(r, "/addon/"+chi.URLParam(r, "installationID")+"/play/"+token)
+				if sealErr != nil {
+					continue
+				}
+				streams = append(streams, item)
+				continue
+			}
 			item.InfoHash = candidate.Torrent.InfoHash
 			item.FileIdx = candidate.Torrent.FileIndex
 		} else {
@@ -119,6 +148,38 @@ func (h *Handler) streams(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, StreamResponse{Streams: streams})
+}
+
+type playbackToken struct {
+	InstallationID string           `json:"installationId"`
+	Candidate      domain.Candidate `json:"candidate"`
+	Expires        int64            `json:"expires"`
+}
+
+func (h *Handler) play(w http.ResponseWriter, r *http.Request) {
+	if h.secrets == nil || len(chi.URLParam(r, "token")) > 8192 {
+		http.NotFound(w, r)
+		return
+	}
+	data, err := h.secrets.OpenURL(chi.URLParam(r, "token"))
+	var payload playbackToken
+	if err != nil || json.Unmarshal(data, &payload) != nil || payload.InstallationID != chi.URLParam(r, "installationID") || payload.Expires < time.Now().Unix() || payload.Expires > time.Now().Add(4*time.Hour+time.Minute).Unix() || payload.Candidate.Torrent == nil {
+		http.NotFound(w, r)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 18*time.Second)
+	defer cancel()
+	result, err := h.engine.ResolveSelected(ctx, chi.URLParam(r, "installationID"), payload.Candidate)
+	if err != nil || result.HTTP == nil {
+		http.Error(w, "stream not cached or unavailable; choose another result", http.StatusConflict)
+		return
+	}
+	streamURL, err := h.streamURL(r, result.HTTP.URL)
+	if err != nil {
+		http.Error(w, "stream unavailable", http.StatusBadGateway)
+		return
+	}
+	http.Redirect(w, r, streamURL, http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) streamURL(r *http.Request, raw string) (string, error) {

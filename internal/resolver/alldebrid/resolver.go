@@ -5,23 +5,19 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"streamweave/internal/domain"
 )
 
-const delayedPollInterval = 5 * time.Second
-
-var ErrDelayed = errors.New("AllDebrid link generation failed")
+var ErrDelayed = errors.New("AllDebrid link is not immediately available")
 
 type Resolver struct {
-	id           string
-	client       *Client
-	pollInterval time.Duration
+	id     string
+	client *Client
 }
 
 func NewResolver(id string, client *Client) *Resolver {
-	return &Resolver{id: id, client: client, pollInterval: delayedPollInterval}
+	return &Resolver{id: id, client: client}
 }
 
 func (r *Resolver) ID() string {
@@ -40,7 +36,7 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 	if !magnet.Ready {
 		cached := false
 		candidate.Cached = &cached
-		return candidate, nil
+		return candidate, errors.New("AllDebrid magnet is not cached")
 	}
 
 	files, err := r.client.MagnetFiles(ctx, magnet.ID)
@@ -58,11 +54,7 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 		return candidate, err
 	}
 	if unlocked.Delayed != 0 && unlocked.Link == "" {
-		link, delayedErr := r.waitForDelayed(ctx, unlocked.Delayed)
-		if delayedErr != nil {
-			return candidate, delayedErr
-		}
-		unlocked.Link = link
+		return candidate, ErrDelayed
 	}
 
 	cached := true
@@ -80,35 +72,6 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 		candidate.SizeBytes = selected.Size
 	}
 	return candidate, nil
-}
-
-func (r *Resolver) waitForDelayed(ctx context.Context, id int64) (string, error) {
-	timer := time.NewTimer(r.pollInterval)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-timer.C:
-		}
-
-		result, err := r.client.Delayed(ctx, id)
-		if err != nil {
-			return "", err
-		}
-		switch result.Status {
-		case 1:
-			timer.Reset(r.pollInterval)
-		case 2:
-			if result.Link == "" {
-				return "", errors.New("AllDebrid delayed link is ready without a URL")
-			}
-			return result.Link, nil
-		case 3:
-			return "", ErrDelayed
-		}
-	}
 }
 
 func flatten(files []File) []File {

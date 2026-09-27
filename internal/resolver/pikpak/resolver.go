@@ -30,9 +30,6 @@ const (
 	clientSecret  = "dbw2OtmVEeuUvIptb1Coyg"
 	clientVersion = "1.47.1"
 	packageName   = "com.pikcloud.pikpak"
-
-	pollInterval = 5 * time.Second
-	maxWait      = 60 * time.Second
 )
 
 var emailPattern = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
@@ -74,8 +71,6 @@ type Resolver struct {
 	client       *http.Client
 	mu           sync.Mutex
 	auth         authState
-	pollInterval time.Duration
-	maxWait      time.Duration
 }
 
 func NewResolver(id, credential, userBaseURL, driveBaseURL string, client *http.Client) (*Resolver, error) {
@@ -100,8 +95,6 @@ func NewResolver(id, credential, userBaseURL, driveBaseURL string, client *http.
 		userBaseURL:  strings.TrimRight(userBaseURL, "/"),
 		driveBaseURL: strings.TrimRight(driveBaseURL, "/"),
 		client:       client,
-		pollInterval: pollInterval,
-		maxWait:      maxWait,
 	}, nil
 }
 
@@ -193,31 +186,15 @@ func (r *Resolver) Resolve(ctx context.Context, candidate domain.Candidate) (dom
 		return candidate, errors.New("PikPak returned an empty file id")
 	}
 
-	deadline := time.Now().Add(r.maxWait)
 	var root fileResponse
-	for {
-		if err := r.driveJSON(ctx, http.MethodGet, "/drive/v1/files/"+url.PathEscape(added.Task.FileID), nil, nil, &root, "POST:/config/v1/basic"); err != nil {
-			return candidate, err
-		}
-		if err := root.responseError.err(); err != nil {
-			return candidate, err
-		}
-		if root.Phase == "PHASE_TYPE_COMPLETE" {
-			break
-		}
-		if root.Phase == "PHASE_TYPE_ERROR" {
-			return candidate, errors.New("PikPak download task failed")
-		}
-		if time.Now().After(deadline) {
-			cached := false
-			candidate.Cached = &cached
-			return candidate, common.ErrNotReady
-		}
-		select {
-		case <-ctx.Done():
-			return candidate, ctx.Err()
-		case <-time.After(r.pollInterval):
-		}
+	if err := r.driveJSON(ctx, http.MethodGet, "/drive/v1/files/"+url.PathEscape(added.Task.FileID), nil, nil, &root, "POST:/config/v1/basic"); err != nil {
+		return candidate, err
+	}
+	if err := root.responseError.err(); err != nil {
+		return candidate, err
+	}
+	if root.Phase != "PHASE_TYPE_COMPLETE" {
+		return candidate, common.ErrNotReady
 	}
 
 	files, err := r.playableFiles(ctx, root)
