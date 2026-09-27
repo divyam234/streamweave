@@ -213,6 +213,26 @@ func TestNuvioSeriesEpisodeIDFlowsToProviders(t *testing.T) {
 	}
 }
 
+func TestPercentEncodedSeriesIDIsDecoded(t *testing.T) {
+	provider := &captureProvider{}
+	e := engine.NewWithSources(engine.StaticSource{provider}, profileResolverSource{profile: engine.InstallationProfile{
+		ClientMode:     "nuvio",
+		ResolutionMode: engine.ResolutionClient,
+	}}, 1)
+	handler := NewHandler(e)
+	// Real Stremio apps percent-encode the colons in series IDs.
+	req := httptest.NewRequest(http.MethodGet, "/nuvio-token/stream/series/tt1234567%3A2%3A3.json", nil)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if provider.last.Media.Type != "series" || provider.last.Media.ID != "tt1234567:2:3" {
+		t.Fatalf("media = %#v", provider.last.Media)
+	}
+}
+
 func TestNuvioServerModeReturnsResolvedURL(t *testing.T) {
 	e := engine.NewWithSources(
 		engine.StaticSource{torrentProvider{}},

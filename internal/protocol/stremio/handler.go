@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -81,8 +82,8 @@ func (h *Handler) streams(w http.ResponseWriter, r *http.Request) {
 	candidates, err := h.engine.SearchUnresolved(r.Context(), engine.SearchRequest{
 		InstallationID: chi.URLParam(r, "installationID"),
 		Media: domain.MediaRef{
-			Type: chi.URLParam(r, "type"),
-			ID:   chi.URLParam(r, "id"),
+			Type: decodePathSegment(chi.URLParam(r, "type")),
+			ID:   decodePathSegment(chi.URLParam(r, "id")),
 		},
 	})
 	if err != nil {
@@ -242,6 +243,17 @@ func filenameFromTitle(title string) string {
 		return ""
 	}
 	return first
+}
+
+// decodePathSegment decodes a route parameter that clients may have
+// percent-encoded (Stremio sends series IDs as tt1234567%3A2%3A3).
+// The canonical ID keeps literal colons so downstream requests and cache
+// keys stay consistent regardless of how the client encoded the URL.
+func decodePathSegment(value string) string {
+	if decoded, err := url.PathUnescape(value); err == nil {
+		return decoded
+	}
+	return value
 }
 
 func manifestID(installationID string) string {
