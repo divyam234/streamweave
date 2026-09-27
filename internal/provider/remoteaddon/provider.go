@@ -106,9 +106,10 @@ func (p *Provider) Search(ctx context.Context, req engine.SearchRequest) ([]doma
 		escapeMediaID(req.Media.ID),
 	)
 
-	// Upstream addons occasionally fail transiently (403/429/5xx or a
-	// dropped connection). Retry once after a short backoff so a single
-	// flaky response does not surface as "no streams found".
+	// Upstream addons occasionally fail transiently (403/429/5xx, a dropped
+	// connection, or a throttled 200 with an empty list). Retry once after
+	// a short backoff so a single flaky response does not surface as
+	// "no streams found".
 	var candidates []domain.Candidate
 	var err error
 	for attempt := 0; attempt < 2; attempt++ {
@@ -122,14 +123,14 @@ func (p *Provider) Search(ctx context.Context, req engine.SearchRequest) ([]doma
 			}
 		}
 		candidates, err = p.searchOnce(ctx, endpoint, req)
-		if err == nil {
+		if err == nil && len(candidates) != 0 {
 			return candidates, nil
 		}
-		if !retryable(err) {
+		if err != nil && !retryable(err) {
 			return nil, err
 		}
 	}
-	return nil, err
+	return candidates, err
 }
 
 func retryable(err error) bool {

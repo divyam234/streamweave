@@ -138,6 +138,34 @@ func TestSearchDoesNotRetryNotFound(t *testing.T) {
 	}
 }
 
+func TestSearchRetriesEmptyFirstResponse(t *testing.T) {
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "application/json")
+		if calls == 1 {
+			_, _ = w.Write([]byte(`{"streams":[]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"streams":[{"infoHash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}]}`))
+	}))
+	defer server.Close()
+
+	provider, err := New("test", "torrentio", server.URL, server.Client(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err := provider.Search(context.Background(), engine.SearchRequest{
+		Media: domain.MediaRef{Type: "series", ID: "tt1234567:1:2"},
+	})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if len(results) != 1 || calls != 2 {
+		t.Fatalf("results = %d, calls = %d", len(results), calls)
+	}
+}
+
 func TestValidateEndpointPreservesConfiguredBase(t *testing.T) {
 	got, err := ValidateEndpoint("https://example.com/config-token", false)
 	if err != nil {
