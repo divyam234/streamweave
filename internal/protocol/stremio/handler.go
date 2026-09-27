@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -101,7 +102,7 @@ func (h *Handler) streams(w http.ResponseWriter, r *http.Request) {
 	streams := make([]Stream, 0, len(candidates))
 	for _, candidate := range candidates {
 		item := Stream{
-			Name:          candidate.SourceID,
+			Name:          displayName(candidate),
 			Title:         candidate.Title,
 			BehaviorHints: candidateBehaviorHints(candidate),
 		}
@@ -197,13 +198,50 @@ func (h *Handler) streamURL(r *http.Request, raw string) (string, error) {
 }
 
 func candidateBehaviorHints(candidate domain.Candidate) *BehaviorHints {
-	if candidate.Filename == "" && candidate.SizeBytes <= 0 {
+	filename := candidate.Filename
+	if filename == "" {
+		filename = filenameFromTitle(candidate.Title)
+	}
+	if filename == "" && candidate.SizeBytes <= 0 {
 		return nil
 	}
 	return &BehaviorHints{
-		Filename:  candidate.Filename,
+		Filename:  filename,
 		VideoSize: candidate.SizeBytes,
 	}
+}
+
+// displayName prefers the upstream addon label (e.g. "Torrentio 4k HDR"),
+// then the configured provider name, so Stremio never shows internal IDs.
+func displayName(candidate domain.Candidate) string {
+	if name := strings.TrimSpace(candidate.UpstreamName); name != "" {
+		return name
+	}
+	if name := strings.TrimSpace(candidate.SourceName); name != "" {
+		return name
+	}
+	return "StreamWeave"
+}
+
+var videoFilenameSuffix = regexp.MustCompile(`(?i)\.(mkv|mp4|avi|mov|m4v|webm|ts|m2ts)\s*$`)
+
+// filenameFromTitle extracts a video filename from the first line of an
+// addon title. Upstream addons such as Torrentio put the release filename
+// on the first line followed by details; anything that does not end in a
+// known video extension is ignored so free-text titles are never
+// misreported as filenames.
+func filenameFromTitle(title string) string {
+	first := strings.TrimSpace(title)
+	if index := strings.Index(first, "\n"); index >= 0 {
+		first = strings.TrimSpace(first[:index])
+	}
+	if len(first) == 0 || len(first) > 256 || !strings.Contains(first, ".") {
+		return ""
+	}
+	if !videoFilenameSuffix.MatchString(first) {
+		return ""
+	}
+	return first
 }
 
 func manifestID(installationID string) string {

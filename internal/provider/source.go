@@ -63,7 +63,7 @@ func (s *Source) Providers(ctx context.Context) ([]engine.Provider, error) {
 		var item engine.Provider
 		switch row.Kind {
 		case "remote-addon":
-			item, err = remoteaddon.New(id, row.Endpoint, s.client, s.allowPrivate)
+			item, err = remoteaddon.New(id, row.Name, row.Endpoint, s.client, s.allowPrivate)
 		case "torznab", "jackett":
 			if _, validationErr := remoteaddon.ValidateEndpoint(row.Endpoint, s.allowPrivate); validationErr != nil {
 				err = validationErr

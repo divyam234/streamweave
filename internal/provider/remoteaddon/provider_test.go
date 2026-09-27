@@ -31,13 +31,36 @@ func TestSearchIdentifiesClientToAddon(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider, err := New("test", server.URL, server.Client(), true)
+	provider, err := New("test", "torrentio", server.URL, server.Client(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	results, err := provider.Search(context.Background(), engine.SearchRequest{Media: domain.MediaRef{Type: "movie", ID: "tt1234567"}})
 	if err != nil || len(results) != 1 {
 		t.Fatalf("Search returned %d results: %v", len(results), err)
+	}
+}
+
+func TestToCandidatePreservesDisplayNames(t *testing.T) {
+	provider := &Provider{id: "remote-id", name: "torrentio"}
+	media := domain.MediaRef{Type: "movie", ID: "tt1234567"}
+
+	candidate, ok := provider.toCandidate(media, stream{
+		Name:     "Torrentio\n4k HDR",
+		Title:    "Movie.2026.2160p.WEB-DL.H265.mkv\nDetails",
+		InfoHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	})
+	if !ok {
+		t.Fatal("valid torrent was rejected")
+	}
+	if candidate.SourceName != "torrentio" {
+		t.Fatalf("SourceName = %q", candidate.SourceName)
+	}
+	if candidate.UpstreamName != "Torrentio\n4k HDR" {
+		t.Fatalf("UpstreamName = %q", candidate.UpstreamName)
+	}
+	if candidate.Title != "Movie.2026.2160p.WEB-DL.H265.mkv\nDetails" {
+		t.Fatalf("Title = %q", candidate.Title)
 	}
 }
 

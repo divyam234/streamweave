@@ -368,3 +368,80 @@ func TestPrivateDirectStreamIsFiltered(t *testing.T) {
 		t.Fatalf("streams = %d, want 0", len(response.Streams))
 	}
 }
+
+type namedProvider struct {
+	candidate domain.Candidate
+}
+
+func (p namedProvider) ID() string { return "named" }
+
+func (p namedProvider) Search(context.Context, engine.SearchRequest) ([]domain.Candidate, error) {
+	return []domain.Candidate{p.candidate}, nil
+}
+
+func streamNameFor(t *testing.T, candidate domain.Candidate) Stream {
+	t.Helper()
+	handler := NewHandler(engine.New(namedProvider{candidate: candidate}))
+	req := httptest.NewRequest(http.MethodGet, "/default/stream/movie/tt0111161.json", nil)
+	rec := httptest.NewRecorder()
+	handler.Routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var response StreamResponse
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode streams: %v", err)
+	}
+	if len(response.Streams) != 1 {
+		t.Fatalf("streams = %#v", response.Streams)
+	}
+	return response.Streams[0]
+}
+
+func TestStreamNamePrefersUpstreamLabel(t *testing.T) {
+	stream := streamNameFor(t, domain.Candidate{
+		ID:           "named",
+		SourceID:     "provider-id",
+		SourceName:   "torrentio",
+		UpstreamName: "Torrentio\n4k HDR",
+		Title:        "Movie.2026.2160p.WEB-DL.H265.mkv\nDetails",
+		Kind:         domain.CandidateDirect,
+		HTTP:         &domain.HTTPStream{URL: "https://cdn.example/movie.mkv"},
+	})
+	if stream.Name != "Torrentio\n4k HDR" {
+		t.Fatalf("name = %q", stream.Name)
+	}
+	if stream.BehaviorHints == nil || stream.BehaviorHints.Filename != "Movie.2026.2160p.WEB-DL.H265.mkv" {
+		t.Fatalf("hints = %#v", stream.BehaviorHints)
+	}
+}
+
+func TestStreamNameFallsBackToProviderName(t *testing.T) {
+	stream := streamNameFor(t, domain.Candidate{
+		ID:         "named",
+		SourceID:   "provider-id",
+		SourceName: "torrentio",
+		Title:      "Just some title without a filename",
+		Kind:       domain.CandidateDirect,
+		HTTP:       &domain.HTTPStream{URL: "https://cdn.example/movie.mkv"},
+	})
+	if stream.Name != "torrentio" {
+		t.Fatalf("name = %q", stream.Name)
+	}
+	if stream.BehaviorHints != nil && stream.BehaviorHints.Filename != "" {
+		t.Fatalf("unexpected filename hint = %#v", stream.BehaviorHints)
+	}
+}
+
+func TestStreamNameNeverShowsInternalID(t *testing.T) {
+	stream := streamNameFor(t, domain.Candidate{
+		ID:       "named",
+		SourceID: "28fb1006-00e3-45b1-8dee-9cf1640ca4c8",
+		Title:    "Movie.1080p",
+		Kind:     domain.CandidateDirect,
+		HTTP:     &domain.HTTPStream{URL: "https://cdn.example/movie.mkv"},
+	})
+	if stream.Name != "StreamWeave" {
+		t.Fatalf("name = %q", stream.Name)
+	}
+}

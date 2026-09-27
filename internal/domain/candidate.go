@@ -32,20 +32,22 @@ type HTTPStream struct {
 }
 
 type Candidate struct {
-	ID         string
-	SourceID   string
-	Kind       CandidateKind
-	Media      MediaRef
-	Title      string
-	Filename   string
-	SizeBytes  int64
-	Resolution string
-	Codec      string
-	Languages  []string
-	Cached     *bool
-	Seeders    *int
-	Torrent    *TorrentInfo
-	Usenet     *UsenetInfo
-	HTTP       *HTTPStream
-	Score      float64
+	ID           string
+	SourceID     string
+	SourceName   string
+	UpstreamName string
+	Kind         CandidateKind
+	Media        MediaRef
+	Title        string
+	Filename     string
+	SizeBytes    int64
+	Resolution   string
+	Codec        string
+	Languages    []string
+	Cached       *bool
+	Seeders      *int
+	Torrent      *TorrentInfo
+	Usenet       *UsenetInfo
+	HTTP         *HTTPStream
+	Score        float64
 }

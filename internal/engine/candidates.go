@@ -118,6 +118,12 @@ func mergeCandidate(left, right domain.Candidate) domain.Candidate {
 	if left.Filename == "" {
 		left.Filename = right.Filename
 	}
+	if left.SourceName == "" {
+		left.SourceName = right.SourceName
+	}
+	if left.UpstreamName == "" {
+		left.UpstreamName = right.UpstreamName
+	}
 	if left.SizeBytes == 0 {
 		left.SizeBytes = right.SizeBytes
 	}

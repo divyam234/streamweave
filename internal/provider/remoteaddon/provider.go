@@ -22,6 +22,7 @@ const maxResponseBytes = 4 << 20
 
 type Provider struct {
 	id       string
+	name     string
 	endpoint string
 	client   *http.Client
 }
@@ -38,7 +39,7 @@ type stream struct {
 	FileIdx  *int
 }
 
-func New(id, endpoint string, client *http.Client, allowPrivate bool) (*Provider, error) {
+func New(id, name, endpoint string, client *http.Client, allowPrivate bool) (*Provider, error) {
 	normalized, err := ValidateEndpoint(endpoint, allowPrivate)
 	if err != nil {
 		return nil, err
@@ -46,7 +47,7 @@ func New(id, endpoint string, client *http.Client, allowPrivate bool) (*Provider
 	if client == nil {
 		return nil, errors.New("http client is required")
 	}
-	return &Provider{id: id, endpoint: normalized, client: client}, nil
+	return &Provider{id: id, name: strings.TrimSpace(name), endpoint: normalized, client: client}, nil
 }
 
 func ValidateEndpoint(raw string, allowPrivate bool) (string, error) {
@@ -145,10 +146,12 @@ func (p *Provider) toCandidate(media domain.MediaRef, item stream) (domain.Candi
 	}
 
 	candidate := domain.Candidate{
-		ID:       candidateID(p.id, item),
-		SourceID: p.id,
-		Media:    media,
-		Title:    title,
+		ID:           candidateID(p.id, item),
+		SourceID:     p.id,
+		SourceName:   p.name,
+		UpstreamName: strings.TrimSpace(item.Name),
+		Media:        media,
+		Title:        title,
 	}
 
 	switch {
