@@ -7,10 +7,8 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
-	"net"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -22,24 +20,8 @@ const (
 )
 
 type SecurityConfig struct {
-	AdminToken     string
-	SecureCookies  bool
-	PublicRequests int
-	AdminRequests  int
-	RateWindow     time.Duration
-}
-
-func (c SecurityConfig) normalized() SecurityConfig {
-	if c.PublicRequests <= 0 {
-		c.PublicRequests = 120
-	}
-	if c.AdminRequests <= 0 {
-		c.AdminRequests = 60
-	}
-	if c.RateWindow <= 0 {
-		c.RateWindow = time.Minute
-	}
-	return c
+	AdminToken    string
+	SecureCookies bool
 }
 
 type adminSessionManager struct {
@@ -238,72 +220,4 @@ func bodyLimit(limit int64) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-func remoteIP(remoteAddr string) string {
-	host, _, err := net.SplitHostPort(remoteAddr)
-	if err != nil {
-		return strings.TrimSpace(remoteAddr)
-	}
-	return strings.TrimSpace(host)
-}
-
-type fixedWindowLimiter struct {
-	mu      sync.Mutex
-	limit   int
-	window  time.Duration
-	entries map[string]rateEntry
-}
-
-type rateEntry struct {
-	start time.Time
-	count int
-}
-
-func newFixedWindowLimiter(limit int, window time.Duration) *fixedWindowLimiter {
-	return &fixedWindowLimiter{
-		limit:   limit,
-		window:  window,
-		entries: make(map[string]rateEntry),
-	}
-}
-
-func (l *fixedWindowLimiter) middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		key := remoteIP(r.RemoteAddr)
-		if key == "" {
-			key = r.RemoteAddr
-		}
-		if !l.allow(key, time.Now()) {
-			w.Header().Set("Retry-After", "60")
-			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (l *fixedWindowLimiter) allow(key string, now time.Time) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	entry := l.entries[key]
-	if entry.start.IsZero() || now.Sub(entry.start) >= l.window {
-		entry = rateEntry{start: now}
-	}
-	if entry.count >= l.limit {
-		return false
-	}
-	entry.count++
-	l.entries[key] = entry
-
-	if len(l.entries) > 4096 {
-		cutoff := now.Add(-2 * l.window)
-		for candidate, existing := range l.entries {
-			if existing.start.Before(cutoff) {
-				delete(l.entries, candidate)
-			}
-		}
-	}
-	return true
 }

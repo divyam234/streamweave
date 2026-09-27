@@ -97,46 +97,6 @@ func TestSecurityHeadersIgnoreForwardedProto(t *testing.T) {
 	}
 }
 
-func TestRateLimiterUsesDirectPeer(t *testing.T) {
-	limiter := newFixedWindowLimiter(2, time.Minute)
-	handler := limiter.middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	}))
-
-	for i := 0; i < 2; i++ {
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.RemoteAddr = "203.0.113.20:1234"
-		req.Header.Set("X-Forwarded-For", "1.2.3.4")
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, req)
-		if rec.Code != http.StatusNoContent {
-			t.Fatalf("request %d status = %d", i+1, rec.Code)
-		}
-	}
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.RemoteAddr = "203.0.113.20:9999"
-	req.Header.Set("X-Forwarded-For", "5.6.7.8")
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-	if rec.Code != http.StatusTooManyRequests {
-		t.Fatalf("expected direct peer rate limit, got %d", rec.Code)
-	}
-}
-
-func TestRateLimiter(t *testing.T) {
-	limiter := newFixedWindowLimiter(2, time.Minute)
-	now := time.Now()
-	if !limiter.allow("client", now) || !limiter.allow("client", now) {
-		t.Fatal("first two requests should pass")
-	}
-	if limiter.allow("client", now) {
-		t.Fatal("third request should be limited")
-	}
-	if !limiter.allow("client", now.Add(time.Minute)) {
-		t.Fatal("new window should reset limit")
-	}
-}
-
 func TestRedactedPathHidesCapabilityTokens(t *testing.T) {
 	token := "0123456789abcdef0123456789abcdef0123456789abcdef"
 	tests := map[string]string{

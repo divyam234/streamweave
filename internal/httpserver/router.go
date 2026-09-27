@@ -26,9 +26,6 @@ func NewRouter(
 	security SecurityConfig,
 	ready func(context.Context) error,
 ) http.Handler {
-	security = security.normalized()
-	publicLimiter := newFixedWindowLimiter(security.PublicRequests, security.RateWindow)
-	adminLimiter := newFixedWindowLimiter(security.AdminRequests, security.RateWindow)
 	sessions := newAdminSessionManager(security.AdminToken, security.SecureCookies)
 
 	r := chi.NewRouter()
@@ -37,12 +34,12 @@ func NewRouter(
 	r.Use(securityHeaders(security.SecureCookies))
 	r.Use(accessLog(logger))
 
-	r.With(publicLimiter.middleware).Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok\n"))
 	})
-	r.With(publicLimiter.middleware).Get("/readyz", func(w http.ResponseWriter, req *http.Request) {
+	r.Get("/readyz", func(w http.ResponseWriter, req *http.Request) {
 		if ready != nil {
 			ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
 			defer cancel()
@@ -57,7 +54,7 @@ func NewRouter(
 	})
 
 	if nativeUsenet != nil {
-		r.With(publicLimiter.middleware, publicCrossOrigin).Get("/api/v1/usenet/stream/{token}", func(w http.ResponseWriter, req *http.Request) {
+		r.With(publicCrossOrigin).Get("/api/v1/usenet/stream/{token}", func(w http.ResponseWriter, req *http.Request) {
 			nativeUsenet.ServeToken(w, req, chi.URLParam(req, "token"))
 		})
 	}
@@ -65,16 +62,15 @@ func NewRouter(
 		stream := func(w http.ResponseWriter, req *http.Request) {
 			proxyStreams.ServeStream(w, req, chi.URLParam(req, "token"))
 		}
-		r.With(publicLimiter.middleware, publicCrossOrigin).Get("/api/v1/proxy/stream/{token}", stream)
-		r.With(publicLimiter.middleware, publicCrossOrigin).Head("/api/v1/proxy/stream/{token}", stream)
+		r.With(publicCrossOrigin).Get("/api/v1/proxy/stream/{token}", stream)
+		r.With(publicCrossOrigin).Head("/api/v1/proxy/stream/{token}", stream)
 	}
 
-	r.With(adminLimiter.middleware, bodyLimit(8<<10)).Post("/auth/login", sessions.login)
-	r.With(adminLimiter.middleware).Get("/auth/session", sessions.session)
-	r.With(adminLimiter.middleware).Post("/auth/logout", sessions.logout)
+	r.With(bodyLimit(8<<10)).Post("/auth/login", sessions.login)
+	r.Get("/auth/session", sessions.session)
+	r.Post("/auth/logout", sessions.logout)
 
 	r.Group(func(admin chi.Router) {
-		admin.Use(adminLimiter.middleware)
 		admin.Use(bodyLimit(maxControlBodyBytes))
 		admin.Use(sessions.middleware)
 		admin.Use(middleware.Timeout(20 * time.Second))
@@ -82,7 +78,6 @@ func NewRouter(
 	})
 
 	r.Group(func(public chi.Router) {
-		public.Use(publicLimiter.middleware)
 		public.Use(publicCrossOrigin)
 		public.Use(middleware.Timeout(30 * time.Second))
 		public.Mount("/addon", stremio.Routes())

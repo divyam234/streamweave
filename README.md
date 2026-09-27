@@ -193,7 +193,7 @@ openssl rand -base64 48    # use for ADMIN_TOKEN
 
 Set `DATABASE_URL` in `.env.production` explicitly. If you choose a password with URL-special characters instead of the recommended hex password, URL-encode it before embedding it in the PostgreSQL DSN.
 
-The production Compose stack publishes the embedded Go application on `APP_BIND_ADDR:APP_PORT` (`127.0.0.1:8080` by default). Change those values based only on how you want the application listener exposed. StreamWeave does not inspect or trust `X-Forwarded-For`, `X-Real-IP`, or `X-Forwarded-Proto`; rate limiting uses the direct TCP peer it sees.
+The production Compose stack publishes the embedded Go application on `APP_BIND_ADDR:APP_PORT` (`127.0.0.1:8080` by default). Change those values based only on how you want the application listener exposed. StreamWeave does not inspect or trust `X-Forwarded-For`, `X-Real-IP`, or `X-Forwarded-Proto`.
 
 If `10.199.17.0/24` conflicts with another Podman allocation on the host, change `BACKEND_SUBNET`, `POSTGRES_IP`, `MIGRATE_IP`, and `APP_IP` together in `.env.production`.
 
@@ -223,7 +223,7 @@ Installations use opaque 48-character public tokens instead of database UUIDs. T
 
 Unknown or disabled installation tokens return 404. Treat an installation URL as a capability URL: anyone who has it can use that installation until it is disabled or rotated.
 
-Public request hardening includes bounded request bodies, per-IP fixed-window rate limits, 8-second provider timeouts, 18-second resolver timeouts, a maximum of 100 returned candidates, and no more than 20 torrent/NZB resolver targets per lookup. Outbound HTTP uses DNS-aware SSRF protection and rejects private, loopback, link-local, CGNAT, benchmark, documentation, and other non-public address ranges as well as HTTPS-to-HTTP redirect downgrades.
+Public request hardening includes bounded request bodies, 8-second provider timeouts, 18-second resolver timeouts, a maximum of 100 returned candidates, and no more than 20 torrent/NZB resolver targets per lookup. Outbound HTTP uses DNS-aware SSRF protection and rejects private, loopback, link-local, CGNAT, benchmark, documentation, and other non-public address ranges as well as HTTPS-to-HTTP redirect downgrades. There is no built-in request rate limit; restrict access at the reverse proxy if needed.
 
 Before upgrades, back up the PostgreSQL volume and retain the exact `MASTER_KEY`; losing that key makes encrypted provider/resolver credentials unrecoverable.
 
@@ -237,7 +237,7 @@ podman compose --env-file .env.production -f compose.prod.yaml \
 
 Keep database backups and the matching `MASTER_KEY` in separate protected locations. A database backup without the key cannot recover encrypted provider/resolver credentials.
 
-This Compose topology is intended for a single application replica. The discovery cache and IP rate limiter are in-process. Before running multiple application replicas, move those controls to a shared service or enforce equivalent limits at the load balancer/WAF; otherwise each replica maintains independent limits and cache state.
+This Compose topology is intended for a single application replica. The discovery cache is in-process; each replica maintains independent cache state.
 
 For a public service, set an abuse/contact policy appropriate for your jurisdiction and only expose providers/content sources you are authorized to operate. The application does not make legal or licensing determinations for indexed content.
 
