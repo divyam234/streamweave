@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -103,6 +104,7 @@ type Engine struct {
 	resolvers      ResolverSource
 	maxConcurrency int
 	metadata       MetadataSource
+	logger         *slog.Logger
 	discoveryCache *discoveryCache
 	discoveryGroup singleflight.Group
 	resolveGroup   singleflight.Group
@@ -136,6 +138,17 @@ func NewWithSources(providers ProviderSource, resolvers ResolverSource, maxConcu
 
 func (e *Engine) SetMetadataSource(source MetadataSource) {
 	e.metadata = source
+}
+
+func (e *Engine) SetLogger(logger *slog.Logger) {
+	e.logger = logger
+}
+
+func (e *Engine) log() *slog.Logger {
+	if e.logger != nil {
+		return e.logger
+	}
+	return slog.Default()
 }
 
 func (e *Engine) ValidateInstallation(ctx context.Context, installationID string) error {
@@ -272,6 +285,12 @@ func (e *Engine) discover(ctx context.Context, req SearchRequest) ([]domain.Cand
 			defer cancel()
 			candidates, providerErr := provider.Search(providerCtx, req)
 			if providerErr != nil {
+				e.log().WarnContext(ctx, "provider discovery failed",
+					"provider", provider.ID(),
+					"type", req.Media.Type,
+					"id", req.Media.ID,
+					"error", providerErr,
+				)
 				return nil
 			}
 			perProvider[index] = candidates

@@ -107,6 +107,7 @@ func main() {
 	}
 
 	aggregationEngine := engine.NewWithSources(providerSource, resolverSource, 8)
+	aggregationEngine.SetLogger(logger)
 	aggregationEngine.SetMetadataSource(cinemeta.New("", outboundClient))
 	stremioHandler := stremioprotocol.NewHandlerWithSecureLinks(aggregationEngine, cfg.Production).WithSecrets(secrets)
 
