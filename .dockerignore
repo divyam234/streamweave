@@ -1,0 +1,15 @@
+.git
+.gitignore
+.tmp
+.env
+.env.*
+!.env.production.example
+node_modules
+web/node_modules
+web/dist
+internal/webui/dist
+coverage
+*.out
+*.log
+compose*.yaml
+README.md

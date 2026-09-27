@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.production.example
+.tmp/
+.DS_Store
+node_modules/
+web/node_modules/
+web/dist/
+internal/webui/dist/
+coverage/
+*.out
+/server

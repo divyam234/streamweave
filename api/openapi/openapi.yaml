@@ -1,0 +1,419 @@
+openapi: 3.1.0
+info:
+  title: Media Engine Control API
+  version: 0.0.0
+tags: []
+paths:
+  /api/v1/installations:
+    get:
+      operationId: ControlApi_listInstallations
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallationListResponse'
+    post:
+      operationId: ControlApi_createInstallation
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Installation'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInstallationRequest'
+  /api/v1/installations/{id}:
+    patch:
+      operationId: ControlApi_updateInstallation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Installation'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInstallationRequest'
+  /api/v1/installations/{id}/rotate-token:
+    post:
+      operationId: ControlApi_rotateInstallationToken
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Installation'
+  /api/v1/providers:
+    get:
+      operationId: ControlApi_listProviders
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderListResponse'
+    post:
+      operationId: ControlApi_createProvider
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Provider'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProviderRequest'
+  /api/v1/providers/{id}:
+    patch:
+      operationId: ControlApi_updateProvider
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Provider'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProviderRequest'
+  /api/v1/resolvers:
+    get:
+      operationId: ControlApi_listResolverAccounts
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolverAccountListResponse'
+    post:
+      operationId: ControlApi_createResolverAccount
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolverAccount'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResolverAccountRequest'
+  /api/v1/resolvers/{id}:
+    patch:
+      operationId: ControlApi_updateResolverAccount
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolverAccount'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResolverAccountRequest'
+  /api/v1/status:
+    get:
+      operationId: ControlApi_getStatus
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+components:
+  schemas:
+    CreateInstallationRequest:
+      type: object
+      required:
+        - name
+        - clientMode
+        - resolutionMode
+        - enabled
+      properties:
+        name:
+          type: string
+        clientMode:
+          type: string
+          enum:
+            - stremio
+            - nuvio
+            - universal
+        resolutionMode:
+          type: string
+          enum:
+            - client
+            - server
+            - hybrid
+        resolverId:
+          type: string
+        enabled:
+          type: boolean
+    CreateProviderRequest:
+      type: object
+      required:
+        - name
+        - kind
+        - endpoint
+        - enabled
+      properties:
+        name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ProviderKind'
+        preset:
+          $ref: '#/components/schemas/RemoteAddonPreset'
+        endpoint:
+          type: string
+        apiKey:
+          type: string
+        enabled:
+          type: boolean
+    CreateResolverAccountRequest:
+      type: object
+      required:
+        - name
+        - kind
+        - apiKey
+        - enabled
+      properties:
+        name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ResolverKind'
+        apiKey:
+          type: string
+        enabled:
+          type: boolean
+    Installation:
+      type: object
+      required:
+        - id
+        - name
+        - clientMode
+        - resolutionMode
+        - enabled
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        clientMode:
+          type: string
+          enum:
+            - stremio
+            - nuvio
+            - universal
+        resolutionMode:
+          type: string
+          enum:
+            - client
+            - server
+            - hybrid
+        resolverId:
+          type: string
+        enabled:
+          type: boolean
+    InstallationListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Installation'
+    Provider:
+      type: object
+      required:
+        - id
+        - name
+        - kind
+        - endpoint
+        - enabled
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ProviderKind'
+        endpoint:
+          type: string
+        enabled:
+          type: boolean
+    ProviderKind:
+      type: string
+      enum:
+        - remote-addon
+        - torznab
+        - newznab
+        - prowlarr
+        - jackett
+        - nzbhydra2
+        - eztv
+        - knaben
+        - the-pirate-bay
+        - therarbg
+        - torrent-galaxy
+        - torbox-search
+    ProviderListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Provider'
+    RemoteAddonPreset:
+      type: string
+      enum:
+        - torrentio
+        - comet
+        - mediafusion
+    ResolverAccount:
+      type: object
+      required:
+        - id
+        - name
+        - kind
+        - enabled
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ResolverKind'
+        enabled:
+          type: boolean
+    ResolverAccountListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResolverAccount'
+    ResolverKind:
+      type: string
+      enum:
+        - realdebrid
+        - debridlink
+        - premiumize
+        - alldebrid
+        - torbox
+        - easydebrid
+        - debrider
+        - pikpak
+        - offcloud
+        - torrin
+    StatusResponse:
+      type: object
+      required:
+        - status
+        - version
+        - database
+        - secrets
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+        version:
+          type: string
+        database:
+          type: string
+          enum:
+            - up
+            - down
+            - disabled
+        secrets:
+          type: string
+          enum:
+            - ready
+            - disabled
+    UpdateInstallationRequest:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+    UpdateProviderRequest:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+    UpdateResolverAccountRequest:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+servers:
+  - url: http://localhost:8080
+    description: Local development
+    variables: {}

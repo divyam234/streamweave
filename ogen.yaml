@@ -1,0 +1,6 @@
+generator:
+  features:
+    disable:
+      # Every generated Handler method must be implemented explicitly.
+      # Do not emit a catch-all UnimplementedHandler that can hide drift.
+      - "ogen/unimplemented"

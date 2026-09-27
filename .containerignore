@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.production.example
+.tmp
+node_modules
+web/node_modules
+web/dist
+internal/webui/dist
+coverage
+*.out
+*.log

@@ -1,0 +1,82 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: media_engine
+      POSTGRES_USER: media_engine
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U media_engine -d media_engine"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    networks:
+      backend:
+        ipv4_address: ${POSTGRES_IP:-10.199.17.10}
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Containerfile
+    entrypoint: ["/usr/local/bin/media-engine-migrate"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      MIGRATIONS_DIR: /app/db/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      backend:
+        ipv4_address: ${MIGRATE_IP:-10.199.17.11}
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    build:
+      context: .
+      dockerfile: Containerfile
+    restart: unless-stopped
+    stop_grace_period: 20s
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      PRODUCTION: "true"
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+      MASTER_KEY: ${MASTER_KEY:?set MASTER_KEY}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN}
+      ALLOW_PRIVATE_PROVIDER_ENDPOINTS: "false"
+      ENABLE_NATIVE_USENET: "false"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "${APP_BIND_ADDR:-127.0.0.1}:${APP_PORT:-8080}:8080"
+    networks:
+      backend:
+        ipv4_address: ${APP_IP:-10.199.17.20}
+
+networks:
+  backend:
+    ipam:
+      config:
+        - subnet: ${BACKEND_SUBNET:-10.199.17.0/24}
+
+volumes:
+  postgres-data:

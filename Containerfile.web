@@ -1,0 +1,2 @@
+# Deprecated. The UI is embedded in the Go application image built from Containerfile.
+FROM scratch
