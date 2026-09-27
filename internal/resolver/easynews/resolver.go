@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/resolver/credentialjson"
+	"streamweave/internal/domain"
+	"streamweave/internal/resolver/credentialjson"
 )
 
 type credential struct {

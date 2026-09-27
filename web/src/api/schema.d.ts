@@ -158,6 +158,7 @@ export interface components {
             kind: components["schemas"]["ResolverKind"];
             apiKey: string;
             enabled: boolean;
+            proxyUrl?: string;
         };
         Installation: {
             id: string;
@@ -191,6 +192,7 @@ export interface components {
             name: string;
             kind: components["schemas"]["ResolverKind"];
             enabled: boolean;
+            proxyEnabled: boolean;
         };
         ResolverAccountListResponse: {
             items: components["schemas"]["ResolverAccount"][];

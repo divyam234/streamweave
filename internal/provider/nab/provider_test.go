@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/engine"
+	"streamweave/internal/domain"
+	"streamweave/internal/engine"
 )
 
 func TestTorznabSearchBySeriesID(t *testing.T) {

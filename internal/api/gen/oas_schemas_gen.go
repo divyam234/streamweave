@@ -233,10 +233,11 @@ func (s *CreateProviderRequest) SetEnabled(val bool) {
 
 // Ref: #/components/schemas/CreateResolverAccountRequest
 type CreateResolverAccountRequest struct {
-	Name    string       `json:"name"`
-	Kind    ResolverKind `json:"kind"`
-	ApiKey  string       `json:"apiKey"`
-	Enabled bool         `json:"enabled"`
+	Name     string       `json:"name"`
+	Kind     ResolverKind `json:"kind"`
+	ApiKey   string       `json:"apiKey"`
+	Enabled  bool         `json:"enabled"`
+	ProxyUrl OptString    `json:"proxyUrl"`
 }
 
 // GetName returns the value of Name.
@@ -259,6 +260,11 @@ func (s *CreateResolverAccountRequest) GetEnabled() bool {
 	return s.Enabled
 }
 
+// GetProxyUrl returns the value of ProxyUrl.
+func (s *CreateResolverAccountRequest) GetProxyUrl() OptString {
+	return s.ProxyUrl
+}
+
 // SetName sets the value of Name.
 func (s *CreateResolverAccountRequest) SetName(val string) {
 	s.Name = val
@@ -277,6 +283,11 @@ func (s *CreateResolverAccountRequest) SetApiKey(val string) {
 // SetEnabled sets the value of Enabled.
 func (s *CreateResolverAccountRequest) SetEnabled(val bool) {
 	s.Enabled = val
+}
+
+// SetProxyUrl sets the value of ProxyUrl.
+func (s *CreateResolverAccountRequest) SetProxyUrl(val OptString) {
+	s.ProxyUrl = val
 }
 
 // Ref: #/components/schemas/Installation
@@ -789,10 +800,11 @@ func (s *RemoteAddonPreset) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/ResolverAccount
 type ResolverAccount struct {
-	ID      string       `json:"id"`
-	Name    string       `json:"name"`
-	Kind    ResolverKind `json:"kind"`
-	Enabled bool         `json:"enabled"`
+	ID           string       `json:"id"`
+	Name         string       `json:"name"`
+	Kind         ResolverKind `json:"kind"`
+	Enabled      bool         `json:"enabled"`
+	ProxyEnabled bool         `json:"proxyEnabled"`
 }
 
 // GetID returns the value of ID.
@@ -815,6 +827,11 @@ func (s *ResolverAccount) GetEnabled() bool {
 	return s.Enabled
 }
 
+// GetProxyEnabled returns the value of ProxyEnabled.
+func (s *ResolverAccount) GetProxyEnabled() bool {
+	return s.ProxyEnabled
+}
+
 // SetID sets the value of ID.
 func (s *ResolverAccount) SetID(val string) {
 	s.ID = val
@@ -833,6 +850,11 @@ func (s *ResolverAccount) SetKind(val ResolverKind) {
 // SetEnabled sets the value of Enabled.
 func (s *ResolverAccount) SetEnabled(val bool) {
 	s.Enabled = val
+}
+
+// SetProxyEnabled sets the value of ProxyEnabled.
+func (s *ResolverAccount) SetProxyEnabled(val bool) {
+	s.ProxyEnabled = val
 }
 
 // Ref: #/components/schemas/ResolverAccountListResponse

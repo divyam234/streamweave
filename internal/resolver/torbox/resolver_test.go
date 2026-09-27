@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 func TestResolveUsenet(t *testing.T) {

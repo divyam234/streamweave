@@ -10,10 +10,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/engine"
-	"media-engine/internal/protocol/nuvio"
-	"media-engine/internal/safehttp"
+	"streamweave/internal/domain"
+	"streamweave/internal/engine"
+	"streamweave/internal/protocol/nuvio"
+	"streamweave/internal/safehttp"
 )
 
 type Handler struct {
@@ -50,7 +50,7 @@ func (h *Handler) manifest(w http.ResponseWriter, r *http.Request) {
 	manifest := Manifest{
 		ID:          manifestID(chi.URLParam(r, "installationID")),
 		Version:     "0.2.0",
-		Name:        "Media Engine",
+		Name:        "StreamWeave",
 		Description: "Universal media aggregation for Stremio and Nuvio.",
 		Resources:   []string{"stream"},
 		Types:       []string{"movie", "series"},
@@ -147,7 +147,7 @@ func candidateBehaviorHints(candidate domain.Candidate) *BehaviorHints {
 
 func manifestID(installationID string) string {
 	sum := sha256.Sum256([]byte(installationID))
-	return "media.engine." + hex.EncodeToString(sum[:6])
+	return "streamweave." + hex.EncodeToString(sum[:6])
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

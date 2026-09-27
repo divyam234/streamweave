@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 type countingProvider struct {

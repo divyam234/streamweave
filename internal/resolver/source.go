@@ -8,23 +8,23 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	dbgen "media-engine/internal/db/gen"
-	"media-engine/internal/engine"
-	"media-engine/internal/resolver/alldebrid"
-	"media-engine/internal/resolver/altmount"
-	"media-engine/internal/resolver/debrider"
-	"media-engine/internal/resolver/debridlink"
-	"media-engine/internal/resolver/easydebrid"
-	"media-engine/internal/resolver/easynews"
-	"media-engine/internal/resolver/nzbdav"
-	"media-engine/internal/resolver/offcloud"
-	"media-engine/internal/resolver/pikpak"
-	"media-engine/internal/resolver/premiumize"
-	"media-engine/internal/resolver/realdebrid"
-	"media-engine/internal/resolver/torbox"
-	"media-engine/internal/resolver/torrin"
-	"media-engine/internal/secretbox"
-	usenetnative "media-engine/internal/usenet/native"
+	dbgen "streamweave/internal/db/gen"
+	"streamweave/internal/engine"
+	"streamweave/internal/resolver/alldebrid"
+	"streamweave/internal/resolver/altmount"
+	"streamweave/internal/resolver/debrider"
+	"streamweave/internal/resolver/debridlink"
+	"streamweave/internal/resolver/easydebrid"
+	"streamweave/internal/resolver/easynews"
+	"streamweave/internal/resolver/nzbdav"
+	"streamweave/internal/resolver/offcloud"
+	"streamweave/internal/resolver/pikpak"
+	"streamweave/internal/resolver/premiumize"
+	"streamweave/internal/resolver/realdebrid"
+	"streamweave/internal/resolver/torbox"
+	"streamweave/internal/resolver/torrin"
+	"streamweave/internal/secretbox"
+	usenetnative "streamweave/internal/usenet/native"
 )
 
 type BaseURLs struct {
@@ -123,57 +123,68 @@ func (s *Source) ResolutionFor(ctx context.Context, installationID string) (engi
 	}
 	accountID := uuid.UUID(account.ID.Bytes).String()
 	apiKey := string(secret)
+	client := s.client
+	if len(account.ProxyCiphertext) != 0 {
+		proxyURL, err := s.secrets.Open(account.ProxyCiphertext, account.ProxyNonce)
+		if err != nil {
+			return engine.Resolution{}, err
+		}
+		client, err = proxyClient(string(proxyURL))
+		if err != nil {
+			return engine.Resolution{}, err
+		}
+	}
 
 	var selected engine.Resolver
 	switch account.Kind {
 	case "alldebrid", "all-debrid":
-		client, err := alldebrid.NewClientWithBaseURL(apiKey, s.baseURLs.AllDebrid, s.client)
+		client, err := alldebrid.NewClientWithBaseURL(apiKey, s.baseURLs.AllDebrid, client)
 		if err != nil {
 			return engine.Resolution{}, err
 		}
 		selected = alldebrid.NewResolver(accountID, client)
 	case "realdebrid":
-		selected, err = realdebrid.NewResolver(accountID, apiKey, s.baseURLs.RealDebrid, s.client)
+		selected, err = realdebrid.NewResolver(accountID, apiKey, s.baseURLs.RealDebrid, client)
 		if err != nil {
 			return engine.Resolution{}, err
 		}
 	case "premiumize":
-		selected, err = premiumize.NewResolver(accountID, apiKey, s.baseURLs.Premiumize, s.client)
+		selected, err = premiumize.NewResolver(accountID, apiKey, s.baseURLs.Premiumize, client)
 		if err != nil {
 			return engine.Resolution{}, err
 		}
 	case "easydebrid":
-		selected, err = easydebrid.NewResolver(accountID, apiKey, s.baseURLs.EasyDebrid, s.client)
+		selected, err = easydebrid.NewResolver(accountID, apiKey, s.baseURLs.EasyDebrid, client)
 		if err != nil {
 			return engine.Resolution{}, err
 		}
 	case "torbox":
-		selected, err = torbox.NewResolver(accountID, apiKey, s.baseURLs.TorBox, s.client)
+		selected, err = torbox.NewResolver(accountID, apiKey, s.baseURLs.TorBox, client)
 		if err != nil {
 			return engine.Resolution{}, err
 		}
 	case "debridlink":
-		selected, err = debridlink.NewResolver(accountID, apiKey, s.baseURLs.DebridLink, s.client)
+		selected, err = debridlink.NewResolver(accountID, apiKey, s.baseURLs.DebridLink, client)
 		if err != nil {
 			return engine.Resolution{}, err
 		}
 	case "offcloud":
-		selected, err = offcloud.NewResolver(accountID, apiKey, s.baseURLs.Offcloud, s.client)
+		selected, err = offcloud.NewResolver(accountID, apiKey, s.baseURLs.Offcloud, client)
 		if err != nil {
 			return engine.Resolution{}, err
 		}
 	case "debrider":
-		selected, err = debrider.NewResolver(accountID, apiKey, s.baseURLs.Debrider, s.client)
+		selected, err = debrider.NewResolver(accountID, apiKey, s.baseURLs.Debrider, client)
 		if err != nil {
 			return engine.Resolution{}, err
 		}
 	case "torrin":
-		selected, err = torrin.NewResolver(accountID, apiKey, s.baseURLs.Torrin, s.client)
+		selected, err = torrin.NewResolver(accountID, apiKey, s.baseURLs.Torrin, client)
 		if err != nil {
 			return engine.Resolution{}, err
 		}
 	case "pikpak":
-		selected, err = pikpak.NewResolver(accountID, apiKey, s.baseURLs.PikPakUser, s.baseURLs.PikPakDrive, s.client)
+		selected, err = pikpak.NewResolver(accountID, apiKey, s.baseURLs.PikPakUser, s.baseURLs.PikPakDrive, client)
 		if err != nil {
 			return engine.Resolution{}, err
 		}
@@ -201,5 +212,8 @@ func (s *Source) ResolutionFor(ctx context.Context, installationID string) (engi
 		return engine.Resolution{}, errors.New("unsupported resolver kind")
 	}
 
+	if len(account.ProxyCiphertext) != 0 && selected != nil {
+		selected = proxyResolver{Resolver: selected, accountID: accountID, box: s.secrets}
+	}
 	return engine.Resolution{Mode: mode, Resolver: selected}, nil
 }

@@ -12,7 +12,7 @@ import (
 )
 
 const createProvider = `-- name: CreateProvider :one
-INSERT INTO providers (
+INSERT INTO /* TEMPLATE: schema */providers (
     name,
     kind,
     endpoint,
@@ -76,7 +76,7 @@ func (q *Queries) CreateProvider(ctx context.Context, arg CreateProviderParams) 
 
 const getProvider = `-- name: GetProvider :one
 SELECT id, name, kind, endpoint, enabled, config, secret_ciphertext, secret_nonce, created_at, updated_at
-FROM providers
+FROM /* TEMPLATE: schema */providers
 WHERE id = $1
 `
 
@@ -113,7 +113,7 @@ func (q *Queries) GetProvider(ctx context.Context, id pgtype.UUID) (GetProviderR
 
 const listProviders = `-- name: ListProviders :many
 SELECT id, name, kind, endpoint, enabled, config, secret_ciphertext, secret_nonce, created_at, updated_at
-FROM providers
+FROM /* TEMPLATE: schema */providers
 ORDER BY name ASC, id ASC
 `
 
@@ -162,7 +162,7 @@ func (q *Queries) ListProviders(ctx context.Context) ([]ListProvidersRow, error)
 }
 
 const updateProviderEnabled = `-- name: UpdateProviderEnabled :one
-UPDATE providers
+UPDATE /* TEMPLATE: schema */providers
 SET enabled = $2,
     updated_at = now()
 WHERE id = $1

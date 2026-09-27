@@ -23,7 +23,7 @@ const authenticatedFetch: typeof fetch = async (input, init) => {
     headers,
   })
   if (response.status === 401 && typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('media-engine-auth-expired'))
+    window.dispatchEvent(new Event('streamweave-auth-expired'))
   }
   return response
 }

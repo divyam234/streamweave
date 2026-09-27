@@ -3,7 +3,7 @@ package remoteaddon
 import (
 	"testing"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 func TestValidateEndpointStripsManifestSuffix(t *testing.T) {

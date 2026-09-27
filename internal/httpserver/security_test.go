@@ -144,6 +144,7 @@ func TestRedactedPathHidesCapabilityTokens(t *testing.T) {
 		"/api/v1/installations/" + token:                   "/api/v1/installations/[token]",
 		"/api/v1/installations/" + token + "/rotate-token": "/api/v1/installations/[token]/rotate-token",
 		"/api/v1/usenet/stream/" + token:                   "/api/v1/usenet/stream/[token]",
+		"/api/v1/proxy/stream/" + token:                    "/api/v1/proxy/stream/[token]",
 	}
 	for input, want := range tests {
 		if got := redactedPath(input); got != want {

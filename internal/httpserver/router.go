@@ -10,10 +10,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"media-engine/internal/api/gen"
-	stremioprotocol "media-engine/internal/protocol/stremio"
-	usenetnative "media-engine/internal/usenet/native"
-	"media-engine/internal/webui"
+	"streamweave/internal/api/gen"
+	stremioprotocol "streamweave/internal/protocol/stremio"
+	"streamweave/internal/resolver"
+	usenetnative "streamweave/internal/usenet/native"
+	"streamweave/internal/webui"
 )
 
 func NewRouter(
@@ -21,6 +22,7 @@ func NewRouter(
 	control *gen.Server,
 	stremio *stremioprotocol.Handler,
 	nativeUsenet *usenetnative.Service,
+	proxyStreams *resolver.Source,
 	security SecurityConfig,
 	ready func(context.Context) error,
 ) http.Handler {
@@ -58,6 +60,13 @@ func NewRouter(
 		r.With(publicLimiter.middleware, publicCrossOrigin).Get("/api/v1/usenet/stream/{token}", func(w http.ResponseWriter, req *http.Request) {
 			nativeUsenet.ServeToken(w, req, chi.URLParam(req, "token"))
 		})
+	}
+	if proxyStreams != nil {
+		stream := func(w http.ResponseWriter, req *http.Request) {
+			proxyStreams.ServeStream(w, req, chi.URLParam(req, "token"))
+		}
+		r.With(publicLimiter.middleware, publicCrossOrigin).Get("/api/v1/proxy/stream/{token}", stream)
+		r.With(publicLimiter.middleware, publicCrossOrigin).Head("/api/v1/proxy/stream/{token}", stream)
 	}
 
 	r.With(adminLimiter.middleware, bodyLimit(8<<10)).Post("/auth/login", sessions.login)
@@ -129,6 +138,9 @@ func redactedPath(path string) string {
 	}
 	if strings.HasPrefix(path, "/api/v1/usenet/stream/") {
 		return "/api/v1/usenet/stream/[token]"
+	}
+	if strings.HasPrefix(path, "/api/v1/proxy/stream/") {
+		return "/api/v1/proxy/stream/[token]"
 	}
 	return path
 }

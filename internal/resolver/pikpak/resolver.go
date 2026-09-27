@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/resolver/common"
+	"streamweave/internal/domain"
+	"streamweave/internal/resolver/common"
 )
 
 const (
@@ -462,7 +462,7 @@ func (r *Resolver) request(ctx context.Context, base, method, path string, query
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-Client-Id", clientID)
 	req.Header.Set("X-Client-Version", clientVersion)
-	req.Header.Set("User-Agent", "Mozilla/5.0 MediaEngine/PikPak")
+	req.Header.Set("User-Agent", "Mozilla/5.0 StreamWeave/PikPak")
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}

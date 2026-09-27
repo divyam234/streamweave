@@ -137,7 +137,7 @@ function Sidebar({
           <Film className="size-4" />
         </div>
         <div>
-          <div className="text-sm font-semibold">Media Engine</div>
+          <div className="text-sm font-semibold">StreamWeave</div>
           <div className="text-xs text-muted-foreground">Control plane</div>
         </div>
       </div>
@@ -240,8 +240,8 @@ function App() {
       queryClient.removeQueries({ queryKey: ['installations'] })
       setAuthError('Admin session expired. Unlock again to continue.')
     }
-    window.addEventListener('media-engine-auth-expired', handleExpired)
-    return () => window.removeEventListener('media-engine-auth-expired', handleExpired)
+    window.addEventListener('streamweave-auth-expired', handleExpired)
+    return () => window.removeEventListener('streamweave-auth-expired', handleExpired)
   }, [queryClient])
   const hasAdminToken = adminSession.data === true
   const status = useQuery({
@@ -305,12 +305,13 @@ function App() {
   })
 
   const createResolver = useMutation({
-    mutationFn: async (input: { name: string; kind: ResolverKind; apiKey: string }) => {
+    mutationFn: async (input: { name: string; kind: ResolverKind; apiKey: string; proxyUrl?: string }) => {
       const { data, error } = await api.POST('/api/v1/resolvers', {
         body: {
           name: input.name,
           kind: input.kind,
           apiKey: input.apiKey,
+          proxyUrl: input.proxyUrl,
           enabled: true,
         },
       })
@@ -436,6 +437,7 @@ function App() {
         name: String(data.get('name') ?? '').trim(),
         kind: resolverKind,
         apiKey: String(data.get('apiKey') ?? '').trim(),
+        proxyUrl: String(data.get('proxyUrl') ?? '').trim() || undefined,
       },
       {
         onSuccess: () => {
@@ -926,6 +928,7 @@ function App() {
                                   <Badge variant={resolver.enabled ? 'default' : 'outline'}>
                                     {resolver.enabled ? 'Enabled' : 'Disabled'}
                                   </Badge>
+                                  {resolver.proxyEnabled && <Badge variant="secondary">Proxied</Badge>}
                                   <Button
                                     disabled={setResolverEnabled.isPending}
                                     size="sm"
@@ -1013,6 +1016,11 @@ function App() {
                             ? 'Enter the PikPak login in username:password format. It is encrypted before storage.'
                             : 'The credential is accepted once, encrypted at rest, and never returned by the API.'}
                         </p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium" htmlFor="resolver-proxy">Outbound proxy URL (optional)</label>
+                        <Input id="resolver-proxy" name="proxyUrl" placeholder="socks5://user:password@proxy.example:1080" autoComplete="off" type="password" />
+                        <p className="text-xs text-muted-foreground">Debrid API calls and video playback will use this proxy. The URL is encrypted and never returned.</p>
                       </div>
                       <Button
                         className="w-full"

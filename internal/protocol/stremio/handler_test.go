@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/engine"
+	"streamweave/internal/domain"
+	"streamweave/internal/engine"
 )
 
 type profileResolverSource struct {
@@ -96,7 +96,7 @@ func TestManifest(t *testing.T) {
 	if err := json.NewDecoder(rec.Body).Decode(&manifest); err != nil {
 		t.Fatalf("decode manifest: %v", err)
 	}
-	if manifest.ID == "media.engine" || len(manifest.ID) <= len("media.engine.") {
+	if manifest.ID == "streamweave" || len(manifest.ID) <= len("streamweave.") {
 		t.Fatalf("manifest id = %q", manifest.ID)
 	}
 	if len(manifest.Resources) != 1 || manifest.Resources[0] != "stream" {
@@ -127,7 +127,7 @@ func TestNuvioClientManifestAdvertisesP2P(t *testing.T) {
 	if manifest.BehaviorHints == nil || !manifest.BehaviorHints.P2P || manifest.BehaviorHints.P2PNotSupported {
 		t.Fatalf("behaviorHints = %#v", manifest.BehaviorHints)
 	}
-	if manifest.ID == "media.engine" {
+	if manifest.ID == "streamweave" {
 		t.Fatalf("manifest ID must be installation-specific")
 	}
 }

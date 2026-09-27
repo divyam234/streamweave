@@ -1,4 +1,4 @@
-module media-engine
+module streamweave
 
 go 1.26.7
 

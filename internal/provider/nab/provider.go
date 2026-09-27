@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/engine"
+	"streamweave/internal/domain"
+	"streamweave/internal/engine"
 )
 
 type Kind string

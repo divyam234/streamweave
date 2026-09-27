@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/engine"
+	"streamweave/internal/domain"
+	"streamweave/internal/engine"
 )
 
 const DefaultBaseURL = "https://v3-cinemeta.strem.io"

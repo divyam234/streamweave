@@ -1,4 +1,4 @@
-# Media Engine
+# StreamWeave
 
 A greenfield media aggregation platform with a shared typed engine and client adapters for Stremio and Nuvio.
 
@@ -41,6 +41,12 @@ Bun lockfiles are the source of truth for JavaScript dependencies.
 
 ## Local PostgreSQL with Podman
 
+Database objects live in the `streamweave` PostgreSQL schema by default. Set
+`DATABASE_SCHEMA` to an identifier such as `streamweave_alt` on **both** the
+application and migration process to isolate another installation in the same
+database. Each schema has its own Goose version table named `migrations`. This initial migration
+is for fresh databases, not an upgrade path from the old development schema.
+
 Start PostgreSQL:
 
 ```sh
@@ -56,7 +62,7 @@ make db-migrate
 The default local DSN is:
 
 ```text
-postgres://media_engine:media_engine@127.0.0.1:5432/media_engine?sslmode=disable
+postgres://streamweave:streamweave@127.0.0.1:5432/streamweave?sslmode=disable
 ```
 
 Override it with `DATABASE_URL` when needed.
@@ -64,7 +70,7 @@ Override it with `DATABASE_URL` when needed.
 ## Run the backend
 
 ```sh
-DATABASE_URL='postgres://media_engine:media_engine@127.0.0.1:5432/media_engine?sslmode=disable' \
+DATABASE_URL='postgres://streamweave:streamweave@127.0.0.1:5432/streamweave?sslmode=disable' \
   go run ./cmd/server
 ```
 
@@ -95,7 +101,7 @@ Initial Stremio-compatible endpoints:
 /addon/{installationID}/stream/{type}/{id}.json
 ```
 
-Nuvio is a first-class client mode over the Stremio addon protocol. Nuvio manifests advertise `tt` and `tmdb` ID prefixes plus P2P support according to the installation resolution mode. Use `client` resolution mode when Nuvio itself should resolve raw torrent hashes through its native TorBox/Premiumize integration; use `server` when Media Engine must return resolved HTTP links only; `hybrid` resolves what it can server-side while retaining raw torrent fallback. Each installation has a distinct manifest ID so multiple Media Engine configurations can coexist in Nuvio.
+Nuvio is a first-class client mode over the Stremio addon protocol. Nuvio manifests advertise `tt` and `tmdb` ID prefixes plus P2P support according to the installation resolution mode. Use `client` resolution mode when Nuvio itself should resolve raw torrent hashes through its native TorBox/Premiumize integration; use `server` when StreamWeave must return resolved HTTP links only; `hybrid` resolves what it can server-side while retaining raw torrent fallback. Each installation has a distinct manifest ID so multiple StreamWeave configurations can coexist in Nuvio.
 
 ## Remote addon presets
 
@@ -137,6 +143,15 @@ The default ranking strongly prefers cached and directly playable results, then 
 
 ## AllDebrid resolution
 
+Debrid resolver accounts may optionally include an HTTP, HTTPS, or SOCKS5
+outbound proxy URL. The proxy URL is encrypted at rest and never returned by
+the control API. For proxied accounts, resolver API calls and video downloads
+both use the proxy: the player receives a short-lived encrypted StreamWeave
+stream URL, and the server relays video bytes through the configured proxy.
+This requires the StreamWeave host to have enough bandwidth for playback.
+Byte-range seeking and HEAD requests are supported. Direct accounts do not
+relay playback. Disable the account to invalidate its stream URLs.
+
 AllDebrid is available as a resolver account. Resolver API keys are never returned by the control API and are encrypted before persistence using AES-256-GCM.
 
 Set a stable 32-byte master key encoded as 64 hex characters:
@@ -159,7 +174,11 @@ For integration tests only, `ALLDEBRID_BASE_URL` can point the client at a local
 
 ## Production deployment
 
-The supported production deployment is `compose.prod.yaml`. It runs PostgreSQL on an internal network and a non-root/read-only Go application container with the Vite UI embedded in the server binary. Media Engine serves its own HTTP interface and has no domain, TLS-terminator, or reverse-proxy configuration.
+The GitHub Actions workflow publishes `linux/amd64` and `linux/arm64` images
+to `ghcr.io/<owner>/streamweave:latest` on every push. Concurrent pushes to
+different branches may race to update `latest`.
+
+The supported production deployment is `compose.prod.yaml`. It runs PostgreSQL on an internal network and a non-root/read-only Go application container with the Vite UI embedded in the server binary. StreamWeave serves its own HTTP interface and has no domain, TLS-terminator, or reverse-proxy configuration.
 
 Production mode is intentionally fail-closed. `PRODUCTION=true` requires PostgreSQL, a valid master encryption key, and an admin token of at least 32 characters. Private/LAN provider endpoints cannot be enabled in production.
 
@@ -174,7 +193,7 @@ openssl rand -base64 48    # use for ADMIN_TOKEN
 
 Set `DATABASE_URL` in `.env.production` explicitly. If you choose a password with URL-special characters instead of the recommended hex password, URL-encode it before embedding it in the PostgreSQL DSN.
 
-The production Compose stack publishes the embedded Go application on `APP_BIND_ADDR:APP_PORT` (`127.0.0.1:8080` by default). Change those values based only on how you want the application listener exposed. Media Engine does not inspect or trust `X-Forwarded-For`, `X-Real-IP`, or `X-Forwarded-Proto`; rate limiting uses the direct TCP peer it sees.
+The production Compose stack publishes the embedded Go application on `APP_BIND_ADDR:APP_PORT` (`127.0.0.1:8080` by default). Change those values based only on how you want the application listener exposed. StreamWeave does not inspect or trust `X-Forwarded-For`, `X-Real-IP`, or `X-Forwarded-Proto`; rate limiting uses the direct TCP peer it sees.
 
 If `10.199.17.0/24` conflicts with another Podman allocation on the host, change `BACKEND_SUBNET`, `POSTGRES_IP`, `MIGRATE_IP`, and `APP_IP` together in `.env.production`.
 
@@ -213,7 +232,7 @@ Back up PostgreSQL before upgrades and test restores regularly:
 
 ```sh
 podman compose --env-file .env.production -f compose.prod.yaml \
-  exec -T postgres pg_dump -U media_engine -Fc media_engine > media-engine.dump
+  exec -T postgres pg_dump -U streamweave -Fc streamweave > streamweave.dump
 ```
 
 Keep database backups and the matching `MASTER_KEY` in separate protected locations. A database backup without the key cannot recover encrypted provider/resolver credentials.

@@ -12,19 +12,19 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"media-engine/internal/api"
-	"media-engine/internal/api/gen"
-	"media-engine/internal/config"
-	dbgen "media-engine/internal/db/gen"
-	"media-engine/internal/engine"
-	"media-engine/internal/httpserver"
-	"media-engine/internal/metadata/cinemeta"
-	stremioprotocol "media-engine/internal/protocol/stremio"
-	"media-engine/internal/provider"
-	"media-engine/internal/resolver"
-	"media-engine/internal/safehttp"
-	"media-engine/internal/secretbox"
-	usenetnative "media-engine/internal/usenet/native"
+	"streamweave/internal/api"
+	"streamweave/internal/api/gen"
+	"streamweave/internal/config"
+	"streamweave/internal/db"
+	"streamweave/internal/engine"
+	"streamweave/internal/httpserver"
+	"streamweave/internal/metadata/cinemeta"
+	stremioprotocol "streamweave/internal/protocol/stremio"
+	"streamweave/internal/provider"
+	"streamweave/internal/resolver"
+	"streamweave/internal/safehttp"
+	"streamweave/internal/secretbox"
+	usenetnative "streamweave/internal/usenet/native"
 )
 
 func main() {
@@ -52,7 +52,11 @@ func main() {
 		defer pool.Close()
 	}
 
-	apiHandler := api.NewHandler(pool, secrets, cfg.AllowPrivateProviderEndpoints)
+	apiHandler, err := api.NewHandler(pool, secrets, cfg.AllowPrivateProviderEndpoints, cfg.DatabaseSchema)
+	if err != nil {
+		logger.Error("configure database schema", "error", err)
+		os.Exit(1)
+	}
 	controlServer, err := gen.NewServer(apiHandler)
 	if err != nil {
 		logger.Error("create generated API server", "error", err)
@@ -73,15 +77,20 @@ func main() {
 	}
 	var providerSource engine.ProviderSource = engine.StaticSource{}
 	var resolverSource engine.ResolverSource = engine.NoResolvers{}
+	var proxyStreams *resolver.Source
 	if pool != nil {
-		queries := dbgen.New(pool)
+		queries, err := db.NewQueries(pool, cfg.DatabaseSchema)
+		if err != nil {
+			logger.Error("configure database schema", "error", err)
+			os.Exit(1)
+		}
 		providerSource = provider.NewSource(
 			queries,
 			secrets,
 			outboundClient,
 			cfg.AllowPrivateProviderEndpoints,
 		)
-		resolverSource = resolver.NewSource(queries, secrets, outboundClient, resolver.BaseURLs{
+		proxyStreams = resolver.NewSource(queries, secrets, outboundClient, resolver.BaseURLs{
 			AllDebrid:   cfg.ResolverURLs.AllDebrid,
 			RealDebrid:  cfg.ResolverURLs.RealDebrid,
 			Premiumize:  cfg.ResolverURLs.Premiumize,
@@ -94,6 +103,7 @@ func main() {
 			PikPakUser:  cfg.ResolverURLs.PikPakUser,
 			PikPakDrive: cfg.ResolverURLs.PikPakDrive,
 		}, nativeUsenet)
+		resolverSource = proxyStreams
 	}
 
 	aggregationEngine := engine.NewWithSources(providerSource, resolverSource, 8)
@@ -113,6 +123,7 @@ func main() {
 			controlServer,
 			stremioHandler,
 			nativeUsenet,
+			proxyStreams,
 			httpserver.SecurityConfig{
 				AdminToken:    cfg.AdminToken,
 				SecureCookies: cfg.Production,

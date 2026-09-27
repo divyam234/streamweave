@@ -3,7 +3,7 @@ package nuvio
 import (
 	"testing"
 
-	"media-engine/internal/engine"
+	"streamweave/internal/engine"
 )
 
 func TestManifestClientModeAdvertisesP2P(t *testing.T) {

@@ -43,4 +43,6 @@ type ResolverAccount struct {
 	SecretNonce      []byte             `json:"secret_nonce"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ProxyCiphertext  []byte             `json:"proxy_ciphertext"`
+	ProxyNonce       []byte             `json:"proxy_nonce"`
 }

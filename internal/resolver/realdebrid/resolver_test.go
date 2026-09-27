@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 func TestResolve(t *testing.T) {

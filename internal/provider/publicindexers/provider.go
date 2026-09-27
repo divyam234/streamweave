@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/engine"
+	"streamweave/internal/domain"
+	"streamweave/internal/engine"
 )
 
 type Kind string
@@ -304,7 +304,7 @@ func (p *Provider) jsonRequest(ctx context.Context, method, endpoint string, bod
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 MediaEngine")
+	req.Header.Set("User-Agent", "Mozilla/5.0 StreamWeave")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

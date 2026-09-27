@@ -16,7 +16,7 @@ import (
 
 const (
 	maxControlBodyBytes = 1 << 20
-	adminCookieName     = "media_engine_admin"
+	adminCookieName     = "streamweave_admin"
 	adminSessionTTL     = 12 * time.Hour
 	csrfHeader          = "X-CSRF-Protection"
 )

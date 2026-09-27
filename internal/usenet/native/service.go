@@ -26,10 +26,10 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/resolver/common"
-	"media-engine/internal/resolver/credentialjson"
-	"media-engine/internal/secretbox"
+	"streamweave/internal/domain"
+	"streamweave/internal/resolver/common"
+	"streamweave/internal/resolver/credentialjson"
+	"streamweave/internal/secretbox"
 )
 
 const maxNZBBytes = 16 << 20
@@ -75,7 +75,7 @@ func NewService(box *secretbox.Box, client *http.Client, cacheDir string) (*Serv
 		return nil, errors.New("http client is required")
 	}
 	if cacheDir == "" {
-		cacheDir = filepath.Join(os.TempDir(), "media-engine-usenet")
+		cacheDir = filepath.Join(os.TempDir(), "streamweave-usenet")
 	}
 	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create usenet cache: %w", err)

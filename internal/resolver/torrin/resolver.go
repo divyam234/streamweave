@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/resolver/common"
-	"media-engine/internal/resolver/httpclient"
+	"streamweave/internal/domain"
+	"streamweave/internal/resolver/common"
+	"streamweave/internal/resolver/httpclient"
 )
 
 const (

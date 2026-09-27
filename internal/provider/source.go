@@ -7,16 +7,16 @@ import (
 
 	"github.com/google/uuid"
 
-	dbgen "media-engine/internal/db/gen"
-	"media-engine/internal/engine"
-	"media-engine/internal/provider/eztv"
-	"media-engine/internal/provider/nab"
-	"media-engine/internal/provider/prowlarr"
-	"media-engine/internal/provider/publicindexers"
-	"media-engine/internal/provider/remoteaddon"
-	"media-engine/internal/provider/torboxsearch"
-	"media-engine/internal/provider/tsukihime"
-	"media-engine/internal/secretbox"
+	dbgen "streamweave/internal/db/gen"
+	"streamweave/internal/engine"
+	"streamweave/internal/provider/eztv"
+	"streamweave/internal/provider/nab"
+	"streamweave/internal/provider/prowlarr"
+	"streamweave/internal/provider/publicindexers"
+	"streamweave/internal/provider/remoteaddon"
+	"streamweave/internal/provider/torboxsearch"
+	"streamweave/internal/provider/tsukihime"
+	"streamweave/internal/secretbox"
 )
 
 type Source struct {

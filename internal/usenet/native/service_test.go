@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/secretbox"
+	"streamweave/internal/domain"
+	"streamweave/internal/secretbox"
 )
 
 func TestNativeNNTPStreamRange(t *testing.T) {

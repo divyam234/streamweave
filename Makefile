@@ -1,4 +1,4 @@
-DATABASE_URL ?= postgres://media_engine:media_engine@127.0.0.1:5432/media_engine?sslmode=disable
+DATABASE_URL ?= postgres://streamweave:streamweave@127.0.0.1:5432/streamweave?sslmode=disable
 PROD_ENV ?= .env.production
 
 .PHONY: generate test build embed-ui web-build check db-up db-down db-migrate db-status prod-config prod-up prod-down prod-logs
@@ -33,7 +33,7 @@ check: generate embed-ui
 	cd web && bun run lint
 	podman compose config >/dev/null
 	POSTGRES_PASSWORD=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
-	DATABASE_URL='postgres://media_engine:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@postgres:5432/media_engine?sslmode=disable' \
+	DATABASE_URL='postgres://streamweave:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@postgres:5432/streamweave?sslmode=disable' \
 	MASTER_KEY=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
 	ADMIN_TOKEN=cccccccccccccccccccccccccccccccccccccccccccccccc \
 	podman compose -f compose.prod.yaml config >/dev/null
@@ -46,10 +46,10 @@ db-down:
 	podman compose down
 
 db-migrate:
-	go tool goose -dir db/migrations postgres "$(DATABASE_URL)" up
+	DATABASE_URL="$(DATABASE_URL)" MIGRATIONS_DIR=db/migrations go run ./cmd/migrate
 
 db-status:
-	go tool goose -dir db/migrations postgres "$(DATABASE_URL)" status
+	DATABASE_URL="$(DATABASE_URL)" MIGRATIONS_DIR=db/migrations go run ./cmd/migrate status
 
 prod-config:
 	podman compose --env-file "$(PROD_ENV)" -f compose.prod.yaml config

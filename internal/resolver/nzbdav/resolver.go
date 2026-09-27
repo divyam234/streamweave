@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"media-engine/internal/resolver/sabdav"
+	"streamweave/internal/resolver/sabdav"
 )
 
 func NewResolver(id, credential string, client *http.Client) (*sabdav.Resolver, error) {

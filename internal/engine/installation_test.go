@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 type rejectingResolverSource struct{}

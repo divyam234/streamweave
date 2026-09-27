@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 type limitProvider struct {

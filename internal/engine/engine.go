@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 const (

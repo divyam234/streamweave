@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Media Engine Control API
+  title: StreamWeave Control API
   version: 0.0.0
 tags: []
 paths:
@@ -242,6 +242,8 @@ components:
           type: string
         enabled:
           type: boolean
+        proxyUrl:
+          type: string
     Installation:
       type: object
       required:
@@ -336,6 +338,7 @@ components:
         - name
         - kind
         - enabled
+        - proxyEnabled
       properties:
         id:
           type: string
@@ -344,6 +347,8 @@ components:
         kind:
           $ref: '#/components/schemas/ResolverKind'
         enabled:
+          type: boolean
+        proxyEnabled:
           type: boolean
     ResolverAccountListResponse:
       type: object

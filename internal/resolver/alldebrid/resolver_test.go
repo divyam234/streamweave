@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 func TestResolveReadyMagnet(t *testing.T) {

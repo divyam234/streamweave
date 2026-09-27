@@ -12,9 +12,9 @@ import (
 )
 
 const createResolverAccount = `-- name: CreateResolverAccount :one
-INSERT INTO resolver_accounts (name, kind, enabled, secret_ciphertext, secret_nonce)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, name, kind, enabled, created_at, updated_at
+INSERT INTO /* TEMPLATE: schema */resolver_accounts (name, kind, enabled, secret_ciphertext, secret_nonce, proxy_ciphertext, proxy_nonce)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, name, kind, enabled, proxy_ciphertext IS NOT NULL AS proxy_enabled, created_at, updated_at
 `
 
 type CreateResolverAccountParams struct {
@@ -23,15 +23,18 @@ type CreateResolverAccountParams struct {
 	Enabled          bool   `json:"enabled"`
 	SecretCiphertext []byte `json:"secret_ciphertext"`
 	SecretNonce      []byte `json:"secret_nonce"`
+	ProxyCiphertext  []byte `json:"proxy_ciphertext"`
+	ProxyNonce       []byte `json:"proxy_nonce"`
 }
 
 type CreateResolverAccountRow struct {
-	ID        pgtype.UUID        `json:"id"`
-	Name      string             `json:"name"`
-	Kind      string             `json:"kind"`
-	Enabled   bool               `json:"enabled"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID           pgtype.UUID        `json:"id"`
+	Name         string             `json:"name"`
+	Kind         string             `json:"kind"`
+	Enabled      bool               `json:"enabled"`
+	ProxyEnabled interface{}        `json:"proxy_enabled"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) CreateResolverAccount(ctx context.Context, arg CreateResolverAccountParams) (CreateResolverAccountRow, error) {
@@ -41,6 +44,8 @@ func (q *Queries) CreateResolverAccount(ctx context.Context, arg CreateResolverA
 		arg.Enabled,
 		arg.SecretCiphertext,
 		arg.SecretNonce,
+		arg.ProxyCiphertext,
+		arg.ProxyNonce,
 	)
 	var i CreateResolverAccountRow
 	err := row.Scan(
@@ -48,6 +53,7 @@ func (q *Queries) CreateResolverAccount(ctx context.Context, arg CreateResolverA
 		&i.Name,
 		&i.Kind,
 		&i.Enabled,
+		&i.ProxyEnabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -55,14 +61,27 @@ func (q *Queries) CreateResolverAccount(ctx context.Context, arg CreateResolverA
 }
 
 const getResolverAccount = `-- name: GetResolverAccount :one
-SELECT id, name, kind, enabled, secret_ciphertext, secret_nonce, created_at, updated_at
-FROM resolver_accounts
+SELECT id, name, kind, enabled, secret_ciphertext, secret_nonce, proxy_ciphertext, proxy_nonce, created_at, updated_at
+FROM /* TEMPLATE: schema */resolver_accounts
 WHERE id = $1
 `
 
-func (q *Queries) GetResolverAccount(ctx context.Context, id pgtype.UUID) (ResolverAccount, error) {
+type GetResolverAccountRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	Name             string             `json:"name"`
+	Kind             string             `json:"kind"`
+	Enabled          bool               `json:"enabled"`
+	SecretCiphertext []byte             `json:"secret_ciphertext"`
+	SecretNonce      []byte             `json:"secret_nonce"`
+	ProxyCiphertext  []byte             `json:"proxy_ciphertext"`
+	ProxyNonce       []byte             `json:"proxy_nonce"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) GetResolverAccount(ctx context.Context, id pgtype.UUID) (GetResolverAccountRow, error) {
 	row := q.db.QueryRow(ctx, getResolverAccount, id)
-	var i ResolverAccount
+	var i GetResolverAccountRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -70,6 +89,8 @@ func (q *Queries) GetResolverAccount(ctx context.Context, id pgtype.UUID) (Resol
 		&i.Enabled,
 		&i.SecretCiphertext,
 		&i.SecretNonce,
+		&i.ProxyCiphertext,
+		&i.ProxyNonce,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -77,18 +98,19 @@ func (q *Queries) GetResolverAccount(ctx context.Context, id pgtype.UUID) (Resol
 }
 
 const listResolverAccounts = `-- name: ListResolverAccounts :many
-SELECT id, name, kind, enabled, created_at, updated_at
-FROM resolver_accounts
+SELECT id, name, kind, enabled, proxy_ciphertext IS NOT NULL AS proxy_enabled, created_at, updated_at
+FROM /* TEMPLATE: schema */resolver_accounts
 ORDER BY name ASC, id ASC
 `
 
 type ListResolverAccountsRow struct {
-	ID        pgtype.UUID        `json:"id"`
-	Name      string             `json:"name"`
-	Kind      string             `json:"kind"`
-	Enabled   bool               `json:"enabled"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID           pgtype.UUID        `json:"id"`
+	Name         string             `json:"name"`
+	Kind         string             `json:"kind"`
+	Enabled      bool               `json:"enabled"`
+	ProxyEnabled interface{}        `json:"proxy_enabled"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) ListResolverAccounts(ctx context.Context) ([]ListResolverAccountsRow, error) {
@@ -105,6 +127,7 @@ func (q *Queries) ListResolverAccounts(ctx context.Context) ([]ListResolverAccou
 			&i.Name,
 			&i.Kind,
 			&i.Enabled,
+			&i.ProxyEnabled,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -119,11 +142,11 @@ func (q *Queries) ListResolverAccounts(ctx context.Context) ([]ListResolverAccou
 }
 
 const updateResolverAccountEnabled = `-- name: UpdateResolverAccountEnabled :one
-UPDATE resolver_accounts
+UPDATE /* TEMPLATE: schema */resolver_accounts
 SET enabled = $2,
     updated_at = now()
 WHERE id = $1
-RETURNING id, name, kind, enabled, created_at, updated_at
+RETURNING id, name, kind, enabled, proxy_ciphertext IS NOT NULL AS proxy_enabled, created_at, updated_at
 `
 
 type UpdateResolverAccountEnabledParams struct {
@@ -132,12 +155,13 @@ type UpdateResolverAccountEnabledParams struct {
 }
 
 type UpdateResolverAccountEnabledRow struct {
-	ID        pgtype.UUID        `json:"id"`
-	Name      string             `json:"name"`
-	Kind      string             `json:"kind"`
-	Enabled   bool               `json:"enabled"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID           pgtype.UUID        `json:"id"`
+	Name         string             `json:"name"`
+	Kind         string             `json:"kind"`
+	Enabled      bool               `json:"enabled"`
+	ProxyEnabled interface{}        `json:"proxy_enabled"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 func (q *Queries) UpdateResolverAccountEnabled(ctx context.Context, arg UpdateResolverAccountEnabledParams) (UpdateResolverAccountEnabledRow, error) {
@@ -148,6 +172,7 @@ func (q *Queries) UpdateResolverAccountEnabled(ctx context.Context, arg UpdateRe
 		&i.Name,
 		&i.Kind,
 		&i.Enabled,
+		&i.ProxyEnabled,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

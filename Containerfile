@@ -14,21 +14,21 @@ RUN apk add --no-cache git ca-certificates
 COPY go.mod go.sum ./
 COPY . .
 COPY --from=web-builder /src/web/dist /src/internal/webui/dist
-RUN CGO_ENABLED=0 go build -tags ui -trimpath -ldflags="-s -w" -o /out/media-engine ./cmd/server
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/media-engine-migrate ./cmd/migrate
+RUN CGO_ENABLED=0 go build -tags ui -trimpath -ldflags="-s -w" -o /out/streamweave ./cmd/server
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/streamweave-migrate ./cmd/migrate
 
 FROM alpine:3.22
 
 RUN apk add --no-cache ca-certificates tzdata wget \
-    && addgroup -S media-engine \
-    && adduser -S -G media-engine -h /app media-engine
+    && addgroup -S streamweave \
+    && adduser -S -G streamweave -h /app streamweave
 
 WORKDIR /app
-COPY --from=builder /out/media-engine /usr/local/bin/media-engine
-COPY --from=builder /out/media-engine-migrate /usr/local/bin/media-engine-migrate
+COPY --from=builder /out/streamweave /usr/local/bin/streamweave
+COPY --from=builder /out/streamweave-migrate /usr/local/bin/streamweave-migrate
 COPY db/migrations /app/db/migrations
 
-USER media-engine
+USER streamweave
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/local/bin/media-engine"]
+ENTRYPOINT ["/usr/local/bin/streamweave"]

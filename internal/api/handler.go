@@ -10,11 +10,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"media-engine/internal/api/gen"
-	dbgen "media-engine/internal/db/gen"
-	"media-engine/internal/provider/presets"
-	"media-engine/internal/provider/remoteaddon"
-	"media-engine/internal/secretbox"
+	"streamweave/internal/api/gen"
+	"streamweave/internal/db"
+	dbgen "streamweave/internal/db/gen"
+	"streamweave/internal/provider/presets"
+	"streamweave/internal/provider/remoteaddon"
+	"streamweave/internal/resolver"
+	"streamweave/internal/secretbox"
 )
 
 const version = "0.2.0"
@@ -31,17 +33,21 @@ type Handler struct {
 	allowPrivate bool
 }
 
-func NewHandler(pool *pgxpool.Pool, secrets *secretbox.Box, allowPrivate bool) *Handler {
+func NewHandler(pool *pgxpool.Pool, secrets *secretbox.Box, allowPrivate bool, schema string) (*Handler, error) {
 	var queries *dbgen.Queries
 	if pool != nil {
-		queries = dbgen.New(pool)
+		var err error
+		queries, err = db.NewQueries(pool, schema)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &Handler{
 		pool:         pool,
 		queries:      queries,
 		secrets:      secrets,
 		allowPrivate: allowPrivate,
-	}
+	}, nil
 }
 
 func (h *Handler) ControlApiGetStatus(ctx context.Context) (*gen.StatusResponse, error) {
@@ -171,10 +177,11 @@ func (h *Handler) ControlApiListResolverAccounts(ctx context.Context) (*gen.Reso
 	items := make([]gen.ResolverAccount, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, gen.ResolverAccount{
-			ID:      uuidFromPG(row.ID),
-			Name:    row.Name,
-			Kind:    gen.ResolverKind(row.Kind),
-			Enabled: row.Enabled,
+			ID:           uuidFromPG(row.ID),
+			Name:         row.Name,
+			Kind:         gen.ResolverKind(row.Kind),
+			Enabled:      row.Enabled,
+			ProxyEnabled: row.ProxyEnabled == true,
 		})
 	}
 	return &gen.ResolverAccountListResponse{Items: items}, nil
@@ -196,6 +203,17 @@ func (h *Handler) ControlApiCreateResolverAccount(ctx context.Context, req *gen.
 	if err != nil {
 		return nil, err
 	}
+	var proxyCiphertext, proxyNonce []byte
+	if req.ProxyUrl.IsSet() {
+		proxyURL := strings.TrimSpace(req.ProxyUrl.Value)
+		if err := resolver.ValidateProxyURL(proxyURL); err != nil {
+			return nil, err
+		}
+		proxyCiphertext, proxyNonce, err = h.secrets.Seal([]byte(proxyURL))
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	row, err := h.queries.CreateResolverAccount(ctx, dbgen.CreateResolverAccountParams{
 		Name:             strings.TrimSpace(req.Name),
@@ -203,16 +221,19 @@ func (h *Handler) ControlApiCreateResolverAccount(ctx context.Context, req *gen.
 		Enabled:          req.Enabled,
 		SecretCiphertext: ciphertext,
 		SecretNonce:      nonce,
+		ProxyCiphertext:  proxyCiphertext,
+		ProxyNonce:       proxyNonce,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return &gen.ResolverAccount{
-		ID:      uuidFromPG(row.ID),
-		Name:    row.Name,
-		Kind:    gen.ResolverKind(row.Kind),
-		Enabled: row.Enabled,
+		ID:           uuidFromPG(row.ID),
+		Name:         row.Name,
+		Kind:         gen.ResolverKind(row.Kind),
+		Enabled:      row.Enabled,
+		ProxyEnabled: row.ProxyEnabled == true,
 	}, nil
 }
 
@@ -232,10 +253,11 @@ func (h *Handler) ControlApiUpdateResolverAccount(ctx context.Context, req *gen.
 		return nil, err
 	}
 	return &gen.ResolverAccount{
-		ID:      uuidFromPG(row.ID),
-		Name:    row.Name,
-		Kind:    gen.ResolverKind(row.Kind),
-		Enabled: row.Enabled,
+		ID:           uuidFromPG(row.ID),
+		Name:         row.Name,
+		Kind:         gen.ResolverKind(row.Kind),
+		Enabled:      row.Enabled,
+		ProxyEnabled: row.ProxyEnabled == true,
 	}, nil
 }
 

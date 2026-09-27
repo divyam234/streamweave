@@ -459,13 +459,20 @@ func (s *CreateResolverAccountRequest) encodeFields(e *jx.Encoder) {
 		e.FieldStart("enabled")
 		e.Bool(s.Enabled)
 	}
+	{
+		if s.ProxyUrl.Set {
+			e.FieldStart("proxyUrl")
+			s.ProxyUrl.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfCreateResolverAccountRequest = [4]string{
+var jsonFieldsNameOfCreateResolverAccountRequest = [5]string{
 	0: "name",
 	1: "kind",
 	2: "apiKey",
 	3: "enabled",
+	4: "proxyUrl",
 }
 
 // Decode decodes CreateResolverAccountRequest from json.
@@ -522,6 +529,16 @@ func (s *CreateResolverAccountRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"enabled\"")
+			}
+		case "proxyUrl":
+			if err := func() error {
+				s.ProxyUrl.Reset()
+				if err := s.ProxyUrl.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"proxyUrl\"")
 			}
 		default:
 			return d.Skip()
@@ -1409,13 +1426,18 @@ func (s *ResolverAccount) encodeFields(e *jx.Encoder) {
 		e.FieldStart("enabled")
 		e.Bool(s.Enabled)
 	}
+	{
+		e.FieldStart("proxyEnabled")
+		e.Bool(s.ProxyEnabled)
+	}
 }
 
-var jsonFieldsNameOfResolverAccount = [4]string{
+var jsonFieldsNameOfResolverAccount = [5]string{
 	0: "id",
 	1: "name",
 	2: "kind",
 	3: "enabled",
+	4: "proxyEnabled",
 }
 
 // Decode decodes ResolverAccount from json.
@@ -1473,6 +1495,18 @@ func (s *ResolverAccount) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"enabled\"")
 			}
+		case "proxyEnabled":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.ProxyEnabled = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"proxyEnabled\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -1483,7 +1517,7 @@ func (s *ResolverAccount) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

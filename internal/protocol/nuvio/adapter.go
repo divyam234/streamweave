@@ -1,6 +1,6 @@
 package nuvio
 
-import "media-engine/internal/engine"
+import "streamweave/internal/engine"
 
 type ManifestHints struct {
 	IDPrefixes      []string

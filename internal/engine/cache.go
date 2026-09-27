@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 const (

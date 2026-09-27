@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 var (

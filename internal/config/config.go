@@ -26,6 +26,7 @@ type ResolverURLs struct {
 type Config struct {
 	Address                       string
 	DatabaseURL                   string
+	DatabaseSchema                string
 	MasterKey                     string
 	AdminToken                    string
 	Production                    bool
@@ -54,6 +55,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		Address:            env("HTTP_ADDR", ":8080"),
 		DatabaseURL:        strings.TrimSpace(os.Getenv("DATABASE_URL")),
+		DatabaseSchema:     os.Getenv("DATABASE_SCHEMA"),
 		MasterKey:          strings.TrimSpace(os.Getenv("MASTER_KEY")),
 		AdminToken:         strings.TrimSpace(os.Getenv("ADMIN_TOKEN")),
 		Production:         production,

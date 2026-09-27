@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 func TestPrepareCandidatesEnrichesDeduplicatesAndRanks(t *testing.T) {

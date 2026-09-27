@@ -13,9 +13,9 @@ import (
 	"net/url"
 	"strings"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/engine"
-	"media-engine/internal/safehttp"
+	"streamweave/internal/domain"
+	"streamweave/internal/engine"
+	"streamweave/internal/safehttp"
 )
 
 const maxResponseBytes = 4 << 20

@@ -2,9 +2,9 @@ import "@typespec/http";
 
 using Http;
 
-@service(#{ title: "Media Engine Control API" })
+@service(#{ title: "StreamWeave Control API" })
 @server("http://localhost:8080", "Local development")
-namespace MediaEngine;
+namespace StreamWeave;
 
 union ProviderKind {
   remoteAddon: "remote-addon",
@@ -77,6 +77,7 @@ model ResolverAccount {
   name: string;
   kind: ResolverKind;
   enabled: boolean;
+  proxyEnabled: boolean;
 }
 
 model CreateResolverAccountRequest {
@@ -84,6 +85,7 @@ model CreateResolverAccountRequest {
   kind: ResolverKind;
   apiKey: string;
   enabled: boolean;
+  proxyUrl?: string;
 }
 
 model UpdateResolverAccountRequest {

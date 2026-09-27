@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/resolver/common"
-	"media-engine/internal/resolver/sabdav"
+	"streamweave/internal/domain"
+	"streamweave/internal/resolver/common"
+	"streamweave/internal/resolver/sabdav"
 )
 
 type Resolver struct {

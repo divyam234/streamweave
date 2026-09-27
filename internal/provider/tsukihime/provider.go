@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	"media-engine/internal/domain"
-	"media-engine/internal/engine"
+	"streamweave/internal/domain"
+	"streamweave/internal/engine"
 )
 
 const (
@@ -146,7 +146,7 @@ func (p *Provider) search(ctx context.Context, query string, page int) (response
 		return response{}, err
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 MediaEngine")
+	req.Header.Set("User-Agent", "Mozilla/5.0 StreamWeave")
 	res, err := p.client.Do(req)
 	if err != nil {
 		return response{}, err

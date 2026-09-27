@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"media-engine/internal/domain"
+	"streamweave/internal/domain"
 )
 
 const delayedPollInterval = 5 * time.Second
