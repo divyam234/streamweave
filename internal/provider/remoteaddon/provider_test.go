@@ -64,6 +64,30 @@ func TestToCandidatePreservesDisplayNames(t *testing.T) {
 	}
 }
 
+func TestSearchKeepsSeriesIDColonsUnescaped(t *testing.T) {
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.EscapedPath()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"streams":[]}`))
+	}))
+	defer server.Close()
+
+	provider, err := New("test", "torrentio", server.URL, server.Client(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = provider.Search(context.Background(), engine.SearchRequest{
+		Media: domain.MediaRef{Type: "series", ID: "tt1234567:2:3"},
+	})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	if gotPath != "/stream/series/tt1234567:2:3.json" {
+		t.Fatalf("path = %q", gotPath)
+	}
+}
+
 func TestValidateEndpointPreservesConfiguredBase(t *testing.T) {
 	got, err := ValidateEndpoint("https://example.com/config-token", false)
 	if err != nil {

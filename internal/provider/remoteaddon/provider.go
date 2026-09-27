@@ -101,8 +101,8 @@ func (p *Provider) Search(ctx context.Context, req engine.SearchRequest) ([]doma
 	endpoint := fmt.Sprintf(
 		"%s/stream/%s/%s.json",
 		p.endpoint,
-		url.PathEscape(req.Media.Type),
-		url.PathEscape(req.Media.ID),
+		escapePathSegment(req.Media.Type),
+		escapeMediaID(req.Media.ID),
 	)
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
@@ -187,4 +187,21 @@ func (p *Provider) toCandidate(media domain.MediaRef, item stream) (domain.Candi
 func candidateID(providerID string, item stream) string {
 	sum := sha256.Sum256([]byte(providerID + "\x00" + item.InfoHash + "\x00" + item.URL + "\x00" + item.Title + "\x00" + item.Name))
 	return hex.EncodeToString(sum[:12])
+}
+
+// escapePathSegment escapes a single URL path segment.
+func escapePathSegment(value string) string {
+	return url.PathEscape(value)
+}
+
+// escapeMediaID escapes a Stremio media ID while preserving the colons
+// that separate a series ID from its season and episode
+// (e.g. tt1234567:2:3). Upstream addons expect the colons literally;
+// escaping them to %3A makes series lookups return nothing.
+func escapeMediaID(id string) string {
+	parts := strings.Split(id, ":")
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return strings.Join(parts, ":")
 }
