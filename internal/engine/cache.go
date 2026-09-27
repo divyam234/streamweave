@@ -12,8 +12,11 @@ const (
 	defaultDiscoveryCacheMax = 512
 )
 
+const defaultDiscoveryStaleMax = 10 * time.Minute
+
 type cacheEntry struct {
 	expires    time.Time
+	stored     time.Time
 	candidates []domain.Candidate
 }
 
@@ -43,6 +46,25 @@ func (c *discoveryCache) get(key string) ([]domain.Candidate, bool) {
 		return nil, false
 	}
 	if !entry.expires.After(now) {
+		return nil, false
+	}
+	return cloneCandidates(entry.candidates), true
+}
+
+// getStale returns the last known entry even after its freshness TTL
+// expired, so a transient upstream outage can serve slightly stale results
+// instead of an empty list. Entries older than the stale horizon are
+// dropped. Empty results are never stored, so stale entries always hold
+// at least one candidate.
+func (c *discoveryCache) getStale(key string) ([]domain.Candidate, bool) {
+	now := time.Now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.entries[key]
+	if !ok {
+		return nil, false
+	}
+	if now.Sub(entry.stored) > defaultDiscoveryStaleMax {
 		delete(c.entries, key)
 		return nil, false
 	}
@@ -57,19 +79,19 @@ func (c *discoveryCache) set(key string, candidates []domain.Candidate) {
 		var oldestKey string
 		var oldest time.Time
 		for key, entry := range c.entries {
-			if !entry.expires.After(now) {
+			if now.Sub(entry.stored) > defaultDiscoveryStaleMax {
 				delete(c.entries, key)
 				continue
 			}
-			if oldestKey == "" || entry.expires.Before(oldest) {
-				oldestKey, oldest = key, entry.expires
+			if oldestKey == "" || entry.stored.Before(oldest) {
+				oldestKey, oldest = key, entry.stored
 			}
 		}
 		if len(c.entries) >= c.max && oldestKey != "" {
 			delete(c.entries, oldestKey)
 		}
 	}
-	c.entries[key] = cacheEntry{expires: now.Add(c.ttl), candidates: cloneCandidates(candidates)}
+	c.entries[key] = cacheEntry{expires: now.Add(c.ttl), stored: now, candidates: cloneCandidates(candidates)}
 }
 
 func cloneCandidates(input []domain.Candidate) []domain.Candidate {

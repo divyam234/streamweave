@@ -252,7 +252,22 @@ func (e *Engine) discoverCached(ctx context.Context, req SearchRequest) ([]domai
 		// "no streams found" until the entry expires.
 		if len(candidates) != 0 {
 			e.discoveryCache.set(key, candidates)
+			return candidates, nil
 		}
+		// Serve the last known good list when the fresh fetch comes back
+		// empty, so a throttled upstream response degrades to slightly
+		// stale results instead of an empty list.
+		if stale, ok := e.discoveryCache.getStale(key); ok {
+			e.log().WarnContext(ctx, "serving stale discovery results",
+				"type", req.Media.Type,
+				"id", req.Media.ID,
+			)
+			return stale, nil
+		}
+		e.log().WarnContext(ctx, "empty discovery with no stale fallback",
+			"type", req.Media.Type,
+			"id", req.Media.ID,
+		)
 		return candidates, nil
 	})
 	if err != nil {
